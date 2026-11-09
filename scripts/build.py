@@ -54,7 +54,47 @@ COMMON = f'''
 .vl{{transform-box:fill-box;transform-origin:top;animation:vl .9s {EASE} both}}
 @keyframes vl{{from{{transform:scaleY(0)}}}}
 .pop{{transform-box:fill-box;transform-origin:center;animation:pop .6s {EASE} both}}
-@keyframes pop{{from{{opacity:0;transform:scale(0)}}}}'''
+@keyframes pop{{from{{opacity:0;transform:scale(0)}}}}
+.wp{{transform-box:fill-box;animation:wp 1.05s cubic-bezier(.77,0,.18,1) both}}
+@keyframes wp{{0%{{transform:scaleX(0);transform-origin:left}}48%{{transform:scaleX(1);transform-origin:left}}52%{{transform:scaleX(1);transform-origin:right}}100%{{transform:scaleX(0);transform-origin:right}}}}
+.on{{animation:on .01s linear both}}
+@keyframes on{{from{{opacity:0}}to{{opacity:1}}}}'''
+
+
+def wipe(x, y, w, h, delay, col):
+    """Solid bar that sweeps in and out; content beneath should appear at delay + 0.5s."""
+    return f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}" fill="{col}" class="wp" style="animation-delay:{delay:.2f}s"/>'
+
+
+ODO_N = [0]
+def odometer(value, x, y, size, col, face, t0, t1, D, css):
+    """Rolling-digit counter. Digits roll from 0 to their target between t0 and t1 (seconds within loop D).
+    Non-digits (commas, #, +) are drawn static. Returns svg; appends keyframes to css list."""
+    out = ""
+    cell = width("0", size, face)
+    lh = size * 1.25
+    cx = x
+    nd = sum(ch.isdigit() for ch in value)
+    k = 0
+    for ch in value:
+        if not ch.isdigit():
+            w = width(ch, size, face)
+            out += text(ch, cx, y, size, col, face)
+            cx += w
+            continue
+        ODO_N[0] += 1
+        cid = f"od{ODO_N[0]}"
+        target = 10 + int(ch)  # roll through a full cycle first
+        col_svg = "".join(text(str(d % 10), cx + cell / 2, y + d * lh, size, col, face, anchor="middle") for d in range(target + 1))
+        stagger = (nd - 1 - k) * 0.12
+        a, b = t0 / D * 100, min((t1 + stagger) / D * 100, 99)
+        css.append(f".{cid}{{animation:{cid} {D}s cubic-bezier(.2,.7,.1,1) infinite}}"
+                   f"@keyframes {cid}{{0%,{a:.2f}%{{transform:translateY(0)}}{b:.2f}%,{(D-1.5)/D*100:.2f}%{{transform:translateY({-target*lh:.1f}px)}}{(D-.4)/D*100:.2f}%,100%{{transform:translateY(0)}}}}")
+        out += (f'<clipPath id="c{cid}"><rect x="{cx:.1f}" y="{y - size*0.95:.1f}" width="{cell:.1f}" height="{size*1.2:.1f}"/></clipPath>'
+                f'<g clip-path="url(#c{cid})"><g class="{cid}">{col_svg}</g></g>')
+        cx += cell
+        k += 1
+    return out
 
 
 # =====================================================================
@@ -132,15 +172,19 @@ def hero(T):
 </circle>'''
 
     # ---- left column type
-    rise = lambda base: (lambda i, ch: ("g", f"animation-delay:{base + i*0.045:.3f}s"))
-    name = (text(NAME_1, M - 5, 158, 124, T["text"], "Display-Bold", tracking=-0.04, per_glyph=rise(.05)) +
-            text(NAME_2, M - 5, 276, 124, T["text"], "Display-Bold", tracking=-0.04, per_glyph=rise(.22)))
+    rise = lambda base: (lambda i, ch: ("g", f"animation-delay:{base + i*0.035:.3f}s"))
+    w1 = width(NAME_1, 124, "Display-Bold", -0.04); w2 = width(NAME_2, 124, "Display-Bold", -0.04)
+    name = (text(NAME_1, M - 5, 158, 124, T["text"], "Display-Bold", tracking=-0.04, cls="on", style="animation-delay:.55s") +
+            text(NAME_2, M - 5, 276, 124, T["text"], "Display-Bold", tracking=-0.04, cls="on", style="animation-delay:.75s"))
+    name_wipes = wipe(M - 8, 64, w1 + 16, 100, .05, T["accent"]) + wipe(M - 8, 182, w2 + 16, 100, .25, T["accent"])
     assert width(NAME_2, 124, "Display-Bold", -0.04) < BX - M - 20
 
     lines = [("Founder of Launch Nest Studio.", T["text"])] + [
         (l, T["muted"]) for l in wrap("I design and build websites, search visibility and compliance software.", 21, BX - M - 50)]
-    stmt = "".join(text(l, M, 340 + i * 31, 21, c, "Regular", cls="f", style=f"animation-delay:{.8 + i*.08:.2f}s")
-                   for i, (l, c) in enumerate(lines))
+    stmt = "".join(
+        wipe(M - 2, 340 + i * 31 - 20, width(l, 21) + 6, 27, .75 + i * .12, T["accent"]) +
+        text(l, M, 340 + i * 31, 21, c, "Regular", cls="on", style=f"animation-delay:{1.25 + i*.12:.2f}s")
+        for i, (l, c) in enumerate(lines))
 
     facts = ""
     cols = [("Launch Nest Studio", "Founder and CEO"), ("FormaOS", "Compliance SaaS")]
@@ -166,6 +210,8 @@ def hero(T):
 @keyframes rp{{0%{{fill:{T["on_dot"]}}}1.2%{{fill:{T["on"]}}}6%{{fill:{T["on_dot"]}}}100%{{fill:{T["on_dot"]}}}}}
 .route{{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.3s {EASE} forwards}}
 @keyframes draw{{to{{stroke-dashoffset:0}}}}
+.wave{{transform-box:fill-box;transform-origin:center;opacity:0;animation:wave 10s cubic-bezier(.25,.6,.35,1) infinite}}
+@keyframes wave{{0%{{transform:scale(.015);opacity:1}}100%{{transform:scale(1);opacity:0}}}}
 .ring{{transform-box:fill-box;transform-origin:center;animation:ring 3s cubic-bezier(.2,.6,.3,1) infinite}}
 @keyframes ring{{0%{{transform:scale(.4);opacity:1}}100%{{transform:scale(3.2);opacity:0}}}}'''
 
@@ -173,9 +219,12 @@ def hero(T):
 <rect x="{BX}" y="1" width="{W - BX - 1}" height="{H - 2}" fill="{T["accent"]}" class="blk"/>
 <clipPath id="nm"><rect x="0" y="20" width="{BX - 10}" height="276"/></clipPath>
 <g clip-path="url(#nm)">{name}</g>
+{name_wipes}
 {stmt}
 <line x1="{M}" y1="452" x2="{BX - M}" y2="452" stroke="{T["line"]}" class="hl" style="animation-delay:.95s"/>
 {facts}
+<clipPath id="blkc"><rect x="{BX}" y="1" width="{W - BX - 1}" height="{H - 2}"/></clipPath>
+<g clip-path="url(#blkc)">{"".join(f'<circle cx="{ax:.1f}" cy="{ay:.1f}" r="520" fill="none" stroke="{T["on"]}" stroke-opacity=".16" stroke-width="1.5" vector-effect="non-scaling-stroke" class="wave" style="animation-delay:{1.4 + i*2:.1f}s"/>' for i in range(5))}</g>
 {dot_svg}
 {routes}
 <circle cx="{ax:.1f}" cy="{ay:.1f}" r="7" fill="none" stroke="{T["on"]}" stroke-width="1.5" class="ring" style="animation-delay:1.6s"/>
@@ -192,7 +241,7 @@ def hero(T):
 # =====================================================================
 def search(T):
     reset()
-    H, D, M = 540, 12, 40
+    H, D, M = 660, 12, 40
     pct = lambda s: f"{s / D * 100:.2f}%"
     hold_end = 10.6
 
@@ -248,7 +297,7 @@ def search(T):
 
     # --- chart card
     cx0, cy0, cwid, chei = 650, 116, 300, 300
-    card = f'<rect x="{cx0 - 30}" y="44" width="{W - cx0 - 10}" height="{H - 84}" fill="{T["panel"]}" stroke="{T["line"]}"/>'
+    card = f'<rect x="{cx0 - 30}" y="44" width="{W - cx0 - 10}" height="{468}" fill="{T["panel"]}" stroke="{T["line"]}"/>'
     pos = [19, 18, 18, 15, 13, 12, 9, 8, 6, 4, 3, 2, 1]
     px = lambda i: cx0 + i * cwid / (len(pos) - 1)
     py = lambda v: cy0 + (v - 1) / 19 * chei
@@ -285,7 +334,22 @@ def search(T):
 {text("Week 1", cx0, cy0 + chei + 34, 14, T["faint"], "Medium")}
 {text("Week 12", cx0 + cwid, cy0 + chei + 34, 14, T["faint"], "Medium", anchor="end")}'''
 
+    # KPI strip with rolling counters
+    ocss = []
+    ky = 548
+    kpis = [("Clicks per month", "2,340"), ("Calls from search", "148"), ("Map pack views", "9,860")]
+    strip = f'<rect x="{M}" y="{ky}" width="{W - 2*M}" height="72" fill="{T["panel"]}" stroke="{T["line"]}"/>'
+    strip += text("Example results", M + 24, ky + 44, 16, T["muted"], "Medium")
+    kw = (W - 2 * M - 210) / 3
+    for i, (lab, val) in enumerate(kpis):
+        kx = M + 210 + i * kw
+        strip += f'<line x1="{kx:.1f}" y1="{ky + 14}" x2="{kx:.1f}" y2="{ky + 58}" stroke="{T["line"]}"/>'
+        strip += text(lab, kx + 22, ky + 30, 14, T["muted"], "Medium")
+        strip += odometer(val, kx + 22, ky + 60, 24, T["text"], "SemiBold", 6.6 + i * .2, 8.4 + i * .2, D, ocss)
+    chart += strip
+
     style = COMMON + f'''
+{"".join(ocss)}
 {"".join(gcss)}
 .caret{{animation:caret {D}s linear infinite,blink 1s steps(1) infinite}}
 @keyframes caret{{{"".join(ck)}}}
@@ -381,15 +445,44 @@ def architecture(T):
         sgn = 1 if c > mid else -1
         paths.append((f"M{mid} {TOP + 278} V{bus - 12} Q{mid} {bus} {mid + 12*sgn} {bus} H{c - 12*sgn:.1f} Q{c:.1f} {bus} {c:.1f} {bus + 12} V{sy}", T["accent"], 1.5 + i * .6))
 
-    wires, packets = "", ""
-    for i, (p, col, begin) in enumerate(paths):
-        wires += f'<path d="{p}" pathLength="1" fill="none" stroke="{T["line2"]}" stroke-width="1.5" class="wire" style="animation-delay:{.9 + i*.05:.2f}s"/>'
-        wires += f'<path d="{p}" fill="none" stroke="{T["accent"]}" stroke-width="1.5" stroke-dasharray="3 9" class="flow" style="animation-delay:{1.6 + i*.05:.2f}s"/>'
-        dur = 1.5 if len(p) < 30 else 2.4
-        packets += f'''<rect x="-4.5" y="-4.5" width="9" height="9" fill="{col}" opacity="0">
-  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.08;.9;1" dur="{dur}s" begin="{2.4 + begin:.2f}s" repeatCount="indefinite"/>
-  <animateMotion path="{p}" dur="{dur}s" begin="{2.4 + begin:.2f}s" repeatCount="indefinite" calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines=".5 0 .5 1"/>
-</rect>'''
+    wires = ""
+    for i, (pth, col, begin) in enumerate(paths):
+        wires += f'<path d="{pth}" pathLength="1" fill="none" stroke="{T["line2"]}" stroke-width="1.5" class="wire" style="animation-delay:{.9 + i*.05:.2f}s"/>'
+        wires += f'<path d="{pth}" fill="none" stroke="{T["accent"]}" stroke-width="1.5" stroke-dasharray="3 9" class="flow" style="animation-delay:{1.6 + i*.05:.2f}s"/>'
+
+    # ---- request trace: one request lit up end to end, looping
+    D = 10
+    tcss, trace = [], ""
+    def on_at(t):
+        k = f"tr{len(tcss)}"
+        tcss.append(f".{k}{{animation:{k} {D}s {EASE} infinite}}@keyframes {k}{{0%,{t/D*100:.2f}%{{opacity:0}}{(t+.3)/D*100:.2f}%,100%{{opacity:1}}}}")
+        return k
+    def hl_box(x, y, w, h, t, fill=False):
+        f = f'fill="{T["accent"]}" fill-opacity=".14"' if fill else 'fill="none"'
+        return f'<rect x="{x}" y="{y}" width="{w}" height="{h}" {f} stroke="{T["accent"]}" stroke-width="2.5" class="{on_at(t)}"/>'
+    def hl_wire(pth, t0, t1):
+        k = f"tr{len(tcss)}"
+        tcss.append(f".{k}{{stroke-dasharray:1;animation:{k} {D}s linear infinite}}@keyframes {k}{{0%,{t0/D*100:.2f}%{{stroke-dashoffset:1}}{t1/D*100:.2f}%,100%{{stroke-dashoffset:0}}}}")
+        a, b = t0 / D, t1 / D
+        return (f'<path d="{pth}" pathLength="1" fill="none" stroke="{T["accent"]}" stroke-width="3" class="{k}"/>'
+                f'<rect x="-6" y="-6" width="12" height="12" fill="{T["accent"]}" stroke="{T["bg"]}" stroke-width="2" opacity="0">'
+                f'<animate attributeName="opacity" values="0;1;0" keyTimes="0;{a:.4f};{b:.4f}" calcMode="discrete" dur="{D}s" repeatCount="indefinite"/>'
+                f'<animateMotion path="{pth}" dur="{D}s" repeatCount="indefinite" keyTimes="0;{a:.4f};{b:.4f};1" keyPoints="0;0;1;1" calcMode="linear"/></rect>')
+    trace += hl_box(40, cy[0], 190, 78, .8)
+    trace += hl_wire(paths[0][0], 1.0, 1.5)
+    trace += hl_box(ax0, TOP, aw, 278, 1.5)
+    trace += hl_box(ax0 + 18, TOP + 150, aw - 36, 44, 1.8, True)
+    trace += hl_wire(paths[3][0], 2.1, 2.6)
+    trace += hl_box(dx0, TOP, dw, 278, 2.6)
+    trace += hl_box(dx0 + 18, TOP + 150, dw - 36, 44, 2.9, True)
+    trace += hl_wire(paths[4][0], 3.3, 3.8)
+    trace += hl_box(ax0 + 18, TOP + 208, aw - 36, 44, 3.8, True)
+    trace += hl_wire(paths[5][0], 4.1, 5.0)
+    trace += hl_box(40, sy, sw, 96, 5.0)
+    trace += hl_wire(paths[6][0], 5.2, 6.1)
+    trace += hl_box(40 + sw + 20, sy, sw, 96, 6.1)
+    trace = f'<g class="trg">{trace}</g>'
+    tcss.append(f".trg{{animation:trg {D}s linear infinite}}@keyframes trg{{0%,86%{{opacity:1}}92%,100%{{opacity:0}}}}")
 
     style = COMMON + f'''
 .bx{{animation:bx .8s {EASE} both}}
@@ -400,8 +493,9 @@ def architecture(T):
 @keyframes fl{{to{{opacity:.45}}}}
 @keyframes march{{to{{stroke-dashoffset:-12}}}}
 .cell{{opacity:0;animation:cell 3.9s steps(1) infinite}}
-@keyframes cell{{0%{{opacity:1}}70%{{opacity:1}}71%,100%{{opacity:0}}}}'''
-    return doc(H, "FormaOS architecture: web, iOS and Android clients, a Next.js app, Supabase Postgres with row-level security per tenant, and Stripe, Resend, Trigger.dev and Claude API services", style, f"{frame(T, H)}{wires}{els}{packets}")
+@keyframes cell{{0%{{opacity:1}}70%{{opacity:1}}71%,100%{{opacity:0}}}}
+{"".join(tcss)}'''
+    return doc(H, "FormaOS architecture: web, iOS and Android clients, a Next.js app, Supabase Postgres with row-level security per tenant, and Stripe, Resend, Trigger.dev and Claude API services", style, f"{frame(T, H)}{wires}{els}{trace}")
 
 
 # =====================================================================
@@ -412,7 +506,7 @@ def ship(T):
     H, D = 380, 12
     pct = lambda s: f"{s / D * 100:.2f}%"
     my, x0, x1, by = 156, 60, 940, 76
-    branches = [("feature/ui", 120, 300, [178, 214]), ("feature/api", 330, 520, [388, 424]), ("qa/agent-run", 550, 740, [608, 644])]
+    branches = [("feature/ui", 120, 300, [178, 214]), ("feature/api", 330, 520, [388, 424]), ("qa/e2e-suite", 550, 740, [608, 644])]
     main_nodes = [(80, "Scope", "Brief and plan"), (300, "Design", "Design system"), (520, "Build", "Next.js + Supabase"),
                   (740, "Test", "Automated QA"), (900, "Release", "Production")]
     speed = (x1 - x0) / 6.2
@@ -459,18 +553,27 @@ def ship(T):
 <path d="M894 {my - 26} L900 {my - 19} L906 {my - 26} Z" fill="{T["accent"]}"/>{text("v1.0", 900, my - 36, 15, T["on"], "mono", anchor="middle")}</g>'''
     g += f'<circle cx="0" cy="{my}" r="6" fill="{T["accent"]}" class="head"/>'
 
-    # deploy bar
+    # deploy pipeline: four stages fill in sequence after the release lands
     dy = 300
-    t_dep0, t_dep1 = t_at(900), t_at(900) + 1.6
-    css += (f".dep{{transform-box:fill-box;transform-origin:left;animation:dep {D}s {INOUT} infinite}}"
-            f"@keyframes dep{{0%,{pct(t_dep0)}{{transform:scaleX(0)}}{pct(t_dep1)},100%{{transform:scaleX(1)}}}}")
-    g += f'<rect x="40" y="{dy - 30}" width="920" height="1" fill="{T["line"]}"/>'
-    g += text("Production deploy", 60, dy + 22, 17, T["text"], "SemiBold")
-    bx0, bw = 260, 560
-    g += f'<rect x="{bx0}" y="{dy + 9}" width="{bw}" height="10" fill="{T["panel2"]}"/>'
-    g += f'<rect x="{bx0}" y="{dy + 9}" width="{bw}" height="10" fill="{T["accent"]}" class="dep"/>'
-    live = tc("l", t_dep1)
-    g += f'<g class="{live}"><circle cx="{bx0 + bw + 30}" cy="{dy + 14}" r="6" fill="{T["accent"]}"/>{text("Live", bx0 + bw + 46, dy + 20, 17, T["text"], "SemiBold")}</g>'
+    t0 = t_at(900) + .2
+    stages = ["Build", "Checks", "Deploy", "Live"]
+    g += f'<rect x="40" y="{dy - 34}" width="920" height="1" fill="{T["line"]}"/>'
+    g += text("Production deploy", 60, dy + 18, 17, T["text"], "SemiBold")
+    sx0, gap = 250, 10
+    segw = (W - 110 - sx0 - gap * 3) / 4
+    for i, st in enumerate(stages):
+        x = sx0 + i * (segw + gap)
+        a, b = t0 + i * .55, t0 + i * .55 + .5
+        k = f"dp{i}"
+        css += (f".{k}{{transform-box:fill-box;transform-origin:left;animation:{k} {D}s {INOUT} infinite}}"
+                f"@keyframes {k}{{0%,{pct(a)}{{transform:scaleX(0)}}{pct(b)},100%{{transform:scaleX(1)}}}}")
+        g += f'<rect x="{x:.1f}" y="{dy + 6}" width="{segw:.1f}" height="8" fill="{T["panel2"]}"/>'
+        g += f'<rect x="{x:.1f}" y="{dy + 6}" width="{segw:.1f}" height="8" fill="{T["accent"]}" class="{k}"/>'
+        g += text(st, x, dy + 40, 15, T["muted"], "Medium")
+        g += f'<g class="{tc("l", b)}">{text(st, x, dy + 40, 15, T["text"], "SemiBold")}</g>'
+    lx = W - 60
+    g += f'''<g class="{tc("n", t0 + 4 * .55)}"><circle cx="{lx - 12}" cy="{dy + 10}" r="12" fill="{T["accent"]}"/>
+<path d="M{lx - 18} {dy + 10} L{lx - 14} {dy + 14} L{lx - 6} {dy + 5}" fill="none" stroke="{T["on"]}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></g>'''
 
     style = f'''{css}
 {"".join(timed)}
@@ -484,44 +587,55 @@ def ship(T):
 # =====================================================================
 def stack(T):
     reset()
-    blocks = [("Frontend", [("Next.js", "App Router"), ("React", "Server Components"), ("TypeScript", "Strict mode"),
-                            ("Tailwind CSS", "Design tokens"), ("shadcn/ui", "Component system")]),
-              ("Backend", [("Supabase", "Postgres + Auth"), ("Row-level security", "Tenant isolation"), ("Stripe", "Billing"),
-                           ("Resend", "Transactional email"), ("Trigger.dev", "Background jobs")]),
-              ("Platform", [("Vercel", "Hosting + edge"), ("iOS + Android", "Mobile apps"), ("WordPress", "Client sites"),
-                            ("Figma", "Product design"), ("GitHub", "Source + CI")]),
-              ("Search + AI", [("Technical SEO", "Core Web Vitals"), ("AEO", "Answer engines"), ("GEO", "Generative search"),
-                               ("Claude Code", "Development"), ("Claude API", "In-app AI")])]
-    M, G = 40, 40
-    bw = (W - 2 * M - G) / 2
-    rh, top = 46, 64
-    bh = 24 + 5 * rh
-    H = top + 2 * bh + 70 + 24
-    D = 10
+    blocks = [
+        ("Frontend", [("Next.js", "App Router, RSC"), ("TypeScript", "Strict mode"), ("Server Actions", "Typed mutations"),
+                      ("Tailwind CSS", "Design tokens"), ("shadcn/ui + Radix", "Accessible UI"), ("Zod", "Schema validation")]),
+        ("Data + backend", [("PostgreSQL", "Supabase"), ("Row-level security", "Tenant isolation"), ("Postgres RPC", "Functions, triggers"),
+                            ("Edge Functions", "Deno runtime"), ("Realtime", "Live sync"), ("Auth", "Sessions, roles")]),
+        ("Infrastructure", [("Vercel", "Edge, ISR"), ("Trigger.dev", "Durable jobs"), ("GitHub Actions", "CI/CD"),
+                            ("Preview deploys", "Per branch"), ("Webhooks", "Idempotent"), ("Cron + queues", "Scheduling")]),
+        ("Payments + messaging", [("Stripe Billing", "Subscriptions"), ("Stripe webhooks", "Event handling"), ("Resend", "Transactional email"),
+                                  ("Audit logging", "Compliance trail"), ("Multi-tenancy", "Org workspaces"), ("RBAC", "Permissions")]),
+        ("Quality + security", [("Playwright", "End-to-end tests"), ("Vitest", "Unit tests"), ("Security audits", "OWASP"),
+                                ("Lighthouse", "Performance"), ("WCAG 2.2", "Accessibility"), ("Type-safe APIs", "End to end")]),
+        ("Search", [("Technical SEO", "Core Web Vitals"), ("Schema.org", "Structured data"), ("Local SEO", "Map pack"),
+                    ("AEO", "Answer engines"), ("GEO", "Generative search"), ("WordPress", "Custom themes")]),
+    ]
+    M, G = 40, 30
+    bw = (W - 2 * M - 2 * G) / 3
+    rh, top = 42, 66
+    bh = 22 + 6 * rh
+    H = top + 2 * bh + 64 + 34
+    D = 12
     body = frame(T, H)
     n = 0
+    total = sum(len(b[1]) for b in blocks)
     for bi, (head, items) in enumerate(blocks):
-        x = M + (bi % 2) * (bw + G)
-        y = top + (bi // 2) * (bh + 70)
-        dl = bi * .12
-        body += text(head.upper(), x, y, 13, T["muted"], "SemiBold", tracking=.12, cls="f", style=f"animation-delay:{dl:.2f}s")
-        body += f'<rect x="{x}" y="{y + 16}" width="{bw:.1f}" height="2" fill="{T["text"]}" class="hl" style="animation-delay:{dl + .1:.2f}s"/>'
+        x = M + (bi % 3) * (bw + G)
+        y = top + (bi // 3) * (bh + 64)
+        dl = bi * .1
+        body += wipe(x - 2, y - 15, width(head.upper(), 13, "SemiBold", .12) + 6, 20, dl, T["accent"])
+        body += text(head.upper(), x, y, 13, T["muted"], "SemiBold", tracking=.12, cls="on", style=f"animation-delay:{dl + .5:.2f}s")
+        body += f'<rect x="{x:.1f}" y="{y + 14}" width="{bw:.1f}" height="2" fill="{T["text"]}" class="hl" style="animation-delay:{dl + .2:.2f}s"/>'
         for r, (a, b) in enumerate(items):
-            yy = y + 18 + (r + 1) * rh
-            d = .3 + dl + r * .06
+            yy = y + 16 + (r + 1) * rh
+            d = .45 + dl + r * .05
+            assert width(a, 16, "Medium") + width(b, 14) + 24 < bw, (a, b)
             body += f'<g class="f" style="animation-delay:{d:.2f}s">'
-            body += f'<rect x="{x}" y="{yy - rh + 1}" width="4" height="{rh - 2}" fill="{T["accent"]}" class="sw" style="animation-delay:{2 + n*D/20:.2f}s"/>'
-            body += f'<rect x="{x}" y="{yy - rh + 1}" width="{bw:.1f}" height="{rh - 2}" fill="{T["accent"]}" class="sb" style="animation-delay:{2 + n*D/20:.2f}s"/>'
-            body += text(a, x + 16, yy - 16, 18, T["text"], "Medium")
-            body += text(b, x + bw - 4, yy - 16, 16, T["muted"], "Regular", anchor="end")
-            body += f'<line x1="{x}" y1="{yy}" x2="{x + bw:.1f}" y2="{yy}" stroke="{T["line"]}"/></g>'
+            ds = f"animation-delay:{1.5 + n * D / total:.2f}s"
+            body += f'<rect x="{x:.1f}" y="{yy - rh + 1}" width="{bw:.1f}" height="{rh - 1}" fill="{T["accent"]}" class="sb" style="{ds}"/>'
+            body += f'<rect x="{x:.1f}" y="{yy - rh + 1}" width="3" height="{rh - 1}" fill="{T["accent"]}" class="sw" style="{ds}"/>'
+            body += text(a, x + 14, yy - 14, 16, T["text"], "Medium")
+            body += text(b, x + bw - 4, yy - 14, 14, T["muted"], "Regular", anchor="end")
+            body += f'<line x1="{x:.1f}" y1="{yy}" x2="{x + bw:.1f}" y2="{yy}" stroke="{T["line"]}"/></g>'
             n += 1
     style = COMMON + f'''
 .sw{{opacity:0;animation:sw {D}s ease-out infinite}}
-@keyframes sw{{0%{{opacity:1}}8%{{opacity:0}}100%{{opacity:0}}}}
+@keyframes sw{{0%{{opacity:1}}5%{{opacity:1}}12%{{opacity:0}}100%{{opacity:0}}}}
 .sb{{opacity:0;animation:sb {D}s ease-out infinite}}
-@keyframes sb{{0%{{opacity:.1}}8%{{opacity:0}}100%{{opacity:0}}}}'''
-    return doc(H, "Stack: Next.js, React, TypeScript, Tailwind CSS, shadcn/ui, Supabase, Stripe, Resend, Trigger.dev, Vercel, iOS, Android, WordPress, Figma, GitHub, SEO, AEO, GEO, Claude Code, Claude API", style, body)
+@keyframes sb{{0%{{opacity:.1}}5%{{opacity:.1}}12%{{opacity:0}}100%{{opacity:0}}}}'''
+    names = ", ".join(a for _, items in blocks for a, _ in items)
+    return doc(H, f"Stack: {names}", style, body)
 
 
 # =====================================================================
@@ -538,6 +652,11 @@ def contact(T):
                  per_glyph=lambda i, ch: ("g", f"animation-delay:{.15 + i*.03:.2f}s"))
     body += f'<rect x="{M}" y="196" width="{uw:.1f}" height="4" fill="{T["on"]}" class="ul"/>'
     ax = M + uw + 30
+    body += (f'<clipPath id="cc"><rect x="1" y="1" width="{W-2}" height="{H-2}"/></clipPath><g clip-path="url(#cc)">' +
+             "".join(f'<circle cx="{ax + 26:.1f}" cy="142" r="700" fill="none" stroke="{T["on"]}" stroke-opacity=".14" stroke-width="1.5" vector-effect="non-scaling-stroke" class="wave" style="animation-delay:{i*2.4:.1f}s"/>' for i in range(5)) +
+             "</g>")
+    body = body.replace(frame(T, H, T["accent"]), "")
+    body = frame(T, H, T["accent"]) + body
     body += f'<g class="arw"><path d="M{ax + 6:.1f} {162} L{ax + 46:.1f} {122} M{ax + 14:.1f} {122} H{ax + 46:.1f} V{154}" fill="none" stroke="{T["on"]}" stroke-width="7"/></g>'
     rx = W - M
     body += text(f"{NAME_1} {NAME_2}", rx, 214, 19, T["on"], "SemiBold", anchor="end", cls="f", style="animation-delay:.4s")
@@ -547,6 +666,8 @@ def contact(T):
 @keyframes rise{{from{{opacity:0;transform:translateY(46px)}}}}
 .ul{{transform-box:fill-box;transform-origin:left;animation:hl 1.3s {EASE} both .8s}}
 .arw{{animation:arw 2.6s {EASE} infinite 1.4s}}
+.wave{{transform-box:fill-box;transform-origin:center;opacity:0;animation:wave 12s cubic-bezier(.25,.6,.35,1) infinite}}
+@keyframes wave{{0%{{transform:scale(.02);opacity:1}}100%{{transform:scale(1);opacity:0}}}}
 @keyframes arw{{0%,55%,100%{{transform:translate(0,0)}}28%{{transform:translate(9px,-9px)}}}}'''
     return doc(H, f"Have a project in mind? launchnest.com.au. {NAME_1} {NAME_2}, founder of Launch Nest Studio.", style, body)
 

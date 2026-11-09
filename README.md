@@ -15,7 +15,7 @@ I design the system, build it, test it hard and ship it to production.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./assets/search-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="./assets/search-light.svg" />
-  <img src="./assets/search-light.svg" width="100%" alt="A local business climbing from position five to position one in search results" />
+  <img src="./assets/search-light.svg" width="100%" alt="Example: a local business climbing from position five to position one, with clicks, calls and map views rolling up" />
 </picture>
 
 ### FormaOS architecture
@@ -31,7 +31,7 @@ I design the system, build it, test it hard and ship it to production.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./assets/ship-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="./assets/ship-light.svg" />
-  <img src="./assets/ship-light.svg" width="100%" alt="Release graph: scope, design, build, automated QA, production release" />
+  <img src="./assets/ship-light.svg" width="100%" alt="Release graph: scope, design, build, automated QA, production deploy pipeline" />
 </picture>
 
 ### Stack
@@ -39,7 +39,7 @@ I design the system, build it, test it hard and ship it to production.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./assets/stack-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="./assets/stack-light.svg" />
-  <img src="./assets/stack-light.svg" width="100%" alt="Stack: Next.js, React, TypeScript, Tailwind CSS, shadcn/ui, Supabase, Stripe, Resend, Trigger.dev, Vercel, iOS, Android, WordPress, Figma, GitHub, Claude Code, Claude API, SEO, AEO, GEO" />
+  <img src="./assets/stack-light.svg" width="100%" alt="Stack: Next.js, TypeScript, Server Actions, Tailwind CSS, shadcn/ui, Zod, PostgreSQL, row-level security, Postgres RPC, Edge Functions, Realtime, Vercel, Trigger.dev, GitHub Actions, Stripe Billing, Resend, Playwright, Vitest, technical SEO, Schema.org, AEO, GEO" />
 </picture>
 
 <br />
