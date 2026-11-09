@@ -1,45 +1,55 @@
-<a href="https://launchnest.com.au">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./assets/hero-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="./assets/hero-light.svg" />
-  <img src="./assets/hero-light.svg" width="100%" alt="Ejaz Hussain. Founder of Launch Nest Studio, building FormaOS. Adelaide, South Australia." />
+  <img src="./assets/hero-light.svg" width="100%" alt="Ejaz Hussain. Founder. Software builder. Production systems. Launch Nest Studio and FormaOS. Adelaide, South Australia." />
+</picture>
+
+## Selected work
+
+<a href="https://formaos.com.au">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/work-formaos-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="./assets/work-formaos-light.svg" />
+  <img src="./assets/work-formaos-light.svg" width="100%" alt="FormaOS: real product screens from the demo workspace, the main technical challenges, and counts taken from the codebase" />
 </picture>
 </a>
 
-I run [Launch Nest Studio](https://launchnest.com.au), an Adelaide studio building websites, brands and search visibility for Australian businesses. I'm also building [FormaOS](https://formaos.com.au), a multi-tenant compliance platform for NDIS, aged care, healthcare, financial services, education and construction.
+<br />
 
-I design the system, build it, test it hard and ship it to production.
-
-### Search visibility
-
+<a href="https://launchnest.com.au">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/search-dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="./assets/search-light.svg" />
-  <img src="./assets/search-light.svg" width="100%" alt="Example: a local business climbing from position five to position one, with clicks, calls and map views rolling up" />
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/work-launchnest-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="./assets/work-launchnest-light.svg" />
+  <img src="./assets/work-launchnest-light.svg" width="100%" alt="Launch Nest Studio: shipped client websites for Build Pro, Dandy Rugs, Barat Ali Batoor, Q Club and SA Best Towing" />
 </picture>
+</a>
 
-### FormaOS architecture
+## Architecture
+
+How FormaOS keeps every organisation's data separate: a request is authorised, reads its own tenant, and gets nothing back when it reaches for another.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./assets/architecture-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="./assets/architecture-light.svg" />
-  <img src="./assets/architecture-light.svg" width="100%" alt="FormaOS architecture: web, iOS and Android clients, a Next.js app, Supabase Postgres with row-level security per tenant, and Stripe, Resend, Trigger.dev and Claude API services" />
+  <img src="./assets/architecture-light.svg" width="100%" alt="FormaOS architecture in four layers: clients, application, data and services, with row-level security isolating tenants" />
 </picture>
 
-### How I ship
+## Engineering process
+
+Every check shown here runs in the FormaOS GitHub Actions pipeline.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/ship-dark.svg" />
-  <source media="(prefers-color-scheme: light)" srcset="./assets/ship-light.svg" />
-  <img src="./assets/ship-light.svg" width="100%" alt="Release graph: scope, design, build, automated QA, production deploy pipeline" />
+  <source media="(prefers-color-scheme: dark)" srcset="./assets/process-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="./assets/process-light.svg" />
+  <img src="./assets/process-light.svg" width="100%" alt="Pull request, quality gates, deployment gates, production on Vercel, post-deploy validation and monitoring" />
 </picture>
 
-### Stack
+## Stack
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./assets/stack-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="./assets/stack-light.svg" />
-  <img src="./assets/stack-light.svg" width="100%" alt="Stack: Next.js, TypeScript, Server Actions, Tailwind CSS, shadcn/ui, Zod, PostgreSQL, row-level security, Postgres RPC, Edge Functions, Realtime, Vercel, Trigger.dev, GitHub Actions, Stripe Billing, Resend, Playwright, Vitest, technical SEO, Schema.org, AEO, GEO" />
+  <img src="./assets/stack-light.svg" width="100%" alt="Next.js, TypeScript, PostgreSQL, Supabase, Playwright and Vercel" />
 </picture>
 
 <br />
@@ -48,6 +58,6 @@ I design the system, build it, test it hard and ship it to production.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./assets/contact-dark.svg" />
   <source media="(prefers-color-scheme: light)" srcset="./assets/contact-light.svg" />
-  <img src="./assets/contact-light.svg" width="100%" alt="Have a project in mind? launchnest.com.au. Ejaz Hussain, founder of Launch Nest Studio." />
+  <img src="./assets/contact-light.svg" width="100%" alt="Have a project in mind? launchnest.com.au" />
 </picture>
 </a>
