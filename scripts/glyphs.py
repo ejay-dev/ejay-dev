@@ -98,7 +98,7 @@ def font(name):
             FONTS[name] = Font("m", MONO_PATH)
         else:
             key = {"Display-Bold": "db", "Display-SemiBold": "ds", "Display-Medium": "dm",
-                   "Regular": "r", "Medium": "md", "SemiBold": "sb"}[name]
+                   "Regular": "r", "Medium": "md", "SemiBold": "sb", "Bold": "b"}[name]
             path = FONT_DIR + (f"InterDisplay-{name.split('-')[1]}.otf" if name.startswith("Display") else f"Inter-{name}.otf")
             FONTS[name] = Font(key, path)
     return FONTS[name]

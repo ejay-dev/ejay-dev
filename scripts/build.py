@@ -1,26 +1,31 @@
-"""Builds the animated SVG panels (light + dark) for Ejaz's GitHub profile README.
-All type is outlined from Inter; flat colour only; single accent."""
+"""Builds the animated SVG panels (light + dark) for the GitHub profile README.
+All type is outlined from Inter; flat colour only; one accent.
+Run:  python3 scripts/build.py"""
 import math
-import random
 from pathlib import Path
 from glyphs import text, width, wrap, glyph_x_positions, all_defs, reset
 
 OUT = Path(__file__).resolve().parent.parent / "assets"
 OUT.mkdir(exist_ok=True)
 
+NAME_1, NAME_2 = "Ejaz", "Hussain"
+
 THEMES = {
-    "dark": dict(bg="#0A0A0A", panel="#121212", line="#262626", line2="#3A3A3A", dot="#383838",
-                 text="#EDEDED", muted="#8F8F8F", accent="#3D6DFF", onaccent="#FFFFFF"),
-    "light": dict(bg="#FFFFFF", panel="#F6F6F6", line="#E5E5E5", line2="#CFCFCF", dot="#DCDCDC",
-                  text="#0A0A0A", muted="#6A6A6A", accent="#2250F4", onaccent="#FFFFFF"),
+    "dark": dict(bg="#0A0A0B", panel="#131315", panel2="#1A1A1D", line="#26262A", line2="#3A3A40",
+                 text="#F2F2F3", muted="#8E8E96", faint="#5A5A62",
+                 accent="#2F5BFF", accent_soft="#1A2A66", on="#FFFFFF", on_muted="#C9D5FF", on_dot="#5B7FFF"),
+    "light": dict(bg="#FFFFFF", panel="#F6F6F7", panel2="#EEEEF0", line="#E4E4E7", line2="#CDCDD3",
+                  text="#0A0A0B", muted="#62626B", faint="#A0A0A8",
+                  accent="#2F5BFF", accent_soft="#DCE4FF", on="#FFFFFF", on_muted="#D6E0FF", on_dot="#5B7FFF"),
 }
 
 W = 1000
-EASE = "cubic-bezier(.16,1,.3,1)"  # expo-out
+EASE = "cubic-bezier(.16,1,.3,1)"
+INOUT = "cubic-bezier(.65,0,.35,1)"
 REDUCED = "@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }"
 
 
-def svg_doc(name, h, label, style, body):
+def doc(h, label, style, body):
     return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{h}" viewBox="0 0 {W} {h}" role="img" aria-label="{label}">
 <title>{label}</title>
 <style>{style}
@@ -31,8 +36,8 @@ def svg_doc(name, h, label, style, body):
 '''
 
 
-def frame(T, h):
-    return f'<rect x="0.5" y="0.5" width="{W-1}" height="{h-1}" fill="{T["bg"]}" stroke="{T["line"]}"/>'
+def frame(T, h, fill=None):
+    return f'<rect x="0.5" y="0.5" width="{W-1}" height="{h-1}" fill="{fill or T["bg"]}" stroke="{T["line"]}"/>'
 
 
 def save(name, theme, svg):
@@ -41,8 +46,19 @@ def save(name, theme, svg):
     print(f"{p.name:24s} {len(svg)/1024:6.1f} KB")
 
 
+COMMON = f'''
+.f{{animation:fade .9s {EASE} both}}
+@keyframes fade{{from{{opacity:0;transform:translateY(10px)}}}}
+.hl{{transform-box:fill-box;transform-origin:left;animation:hl 1.2s {EASE} both}}
+@keyframes hl{{from{{transform:scaleX(0)}}}}
+.vl{{transform-box:fill-box;transform-origin:top;animation:vl .9s {EASE} both}}
+@keyframes vl{{from{{transform:scaleY(0)}}}}
+.pop{{transform-box:fill-box;transform-origin:center;animation:pop .6s {EASE} both}}
+@keyframes pop{{from{{opacity:0;transform:scale(0)}}}}'''
+
+
 # =====================================================================
-# HERO — name, statement, dot-matrix Australia radiating from Adelaide
+# HERO
 # =====================================================================
 AUS = [(113.4,-22.0),(114.1,-21.8),(116.7,-20.6),(118.6,-20.3),(121.0,-19.5),(122.2,-18.0),(123.5,-16.5),
        (125.0,-14.6),(126.9,-13.8),(128.1,-15.0),(129.5,-14.9),(130.1,-12.9),(130.8,-12.4),(132.6,-11.5),
@@ -57,13 +73,12 @@ AUS = [(113.4,-22.0),(114.1,-21.8),(116.7,-20.6),(118.6,-20.3),(121.0,-19.5),(12
        (115.7,-32.0),(115.0,-29.5),(114.6,-28.7),(114.1,-26.5),(113.2,-26.2),(113.6,-24.9)]
 TAS = [(144.6,-40.7),(148.3,-40.9),(148.3,-42.2),(147.3,-43.5),(146.0,-43.6),(145.2,-42.2)]
 CITIES = {"Adelaide": (138.6, -34.93), "Melbourne": (144.96, -37.81), "Sydney": (151.21, -33.87),
-          "Brisbane": (153.03, -27.47), "Perth": (115.86, -31.95)}
+          "Brisbane": (153.03, -27.47), "Perth": (115.86, -31.95), "Darwin": (130.84, -12.46)}
 
 
 def inside(pt, poly):
     x, y = pt
-    c = False
-    j = len(poly) - 1
+    c, j = False, len(poly) - 1
     for i in range(len(poly)):
         xi, yi = poly[i]; xj, yj = poly[j]
         if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
@@ -74,426 +89,439 @@ def inside(pt, poly):
 
 def hero(T):
     reset()
-    H = 560
-    M = 48
-    # map box
-    mx0, my0, mw, mh = 548, 44, 410, 360
+    H, M = 580, 52
+    BX = 560  # colour block starts
+    # ---- map on the accent block
+    mx0, my0, mw, mh = BX + 34, 40, W - BX - 68, 380
     kx = math.cos(math.radians(27))
     lon0, lon1, lat0, lat1 = 112.9, 153.9, -10.4, -43.9
     s = min(mw / ((lon1 - lon0) * kx), mh / (lat0 - lat1))
     ox = mx0 + (mw - (lon1 - lon0) * kx * s) / 2
     proj = lambda lon, lat: (ox + (lon - lon0) * kx * s, my0 + (lat0 - lat) * s)
     inv = lambda x, y: ((x - ox) / (kx * s) + lon0, lat0 - (y - my0) / s)
-    ax, ay = proj(*CITIES["Adelaide"])
-
-    step = 9.5
+    step = 9
     dots = []
     y = my0 + step / 2
     while y < my0 + mh:
         x = mx0 + step / 2
         while x < mx0 + mw:
-            ll = inv(x, y)
-            if inside(ll, AUS) or inside(ll, TAS):
+            if inside(inv(x, y), AUS) or inside(inv(x, y), TAS):
                 dots.append((x, y))
             x += step
         y += step
-    # snap Adelaide to nearest dot
-    ax, ay = min(dots, key=lambda d: (d[0] - ax) ** 2 + (d[1] - ay) ** 2)
-    dot_svg = []
-    for x, y in dots:
-        d = math.hypot(x - ax, y - ay)
-        dot_svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.3" class="d" style="animation-delay:{0.35 + d*0.0024:.3f}s,{2.2 + d/150:.3f}s"/>')
+    snap = lambda p: min(dots, key=lambda d: (d[0] - p[0]) ** 2 + (d[1] - p[1]) ** 2)
+    ax, ay = snap(proj(*CITIES["Adelaide"]))
+    dot_svg = "".join(
+        f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.2" class="d" style="animation-delay:{0.5 + math.hypot(x-ax, y-ay)*0.0022:.3f}s,{2.4 + math.hypot(x-ax, y-ay)/140:.3f}s"/>'
+        for x, y in dots)
 
-    # routes from Adelaide
     routes = ""
-    for i, c in enumerate(["Perth", "Melbourne", "Sydney", "Brisbane"]):
-        cx, cy = proj(*CITIES[c])
-        cx, cy = min(dots, key=lambda d: (d[0] - cx) ** 2 + (d[1] - cy) ** 2)
-        mxp, myp = (ax + cx) / 2, (ay + cy) / 2 - 0.28 * math.hypot(cx - ax, cy - ay)
+    for i, c in enumerate(["Perth", "Darwin", "Brisbane", "Sydney", "Melbourne"]):
+        cx, cy = snap(proj(*CITIES[c]))
+        dist = math.hypot(cx - ax, cy - ay)
+        mxp, myp = (ax + cx) / 2, (ay + cy) / 2 - 0.3 * dist
         p = f"M{ax:.1f} {ay:.1f} Q{mxp:.1f} {myp:.1f} {cx:.1f} {cy:.1f}"
-        dl = 1.6 + i * 0.25
+        dl = 1.7 + i * 0.18
+        begin = 3.2 + i * 0.7
         routes += f'''
-  <path d="{p}" pathLength="1" fill="none" stroke="{T["text"]}" stroke-width="1.25" class="route" style="animation-delay:{dl:.2f}s"/>
-  <circle cx="{cx:.1f}" cy="{cy:.1f}" r="4" fill="{T["text"]}" class="pop" style="animation-delay:{dl + 0.7:.2f}s"/>
-  <rect x="-3.5" y="-3.5" width="7" height="7" fill="{T["accent"]}" opacity="0">
-    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="3.2s" begin="{3 + i*0.8:.1f}s" repeatCount="indefinite"/>
-    <animateMotion path="{p}" dur="3.2s" begin="{3 + i*0.8:.1f}s" repeatCount="indefinite" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".45 0 .55 1"/>
-  </rect>'''
+<path d="{p}" pathLength="1" fill="none" stroke="{T["on"]}" stroke-opacity=".55" stroke-width="1.2" class="route" style="animation-delay:{dl:.2f}s"/>
+<circle cx="{cx:.1f}" cy="{cy:.1f}" r="3.6" fill="{T["on"]}" class="pop" style="animation-delay:{dl + .8:.2f}s"/>
+<circle r="3" fill="{T["on"]}" opacity="0">
+  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.12;.85;1" dur="2.8s" begin="{begin:.1f}s" repeatCount="indefinite"/>
+  <animateMotion path="{p}" dur="2.8s" begin="{begin:.1f}s" repeatCount="indefinite" calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines=".45 0 .55 1"/>
+</circle>'''
 
-    # name — each glyph rises from a mask
-    rise = lambda i, ch: ("g", f"animation-delay:{0.05 + i*0.045:.3f}s")
-    name1 = text("Ejaz", M - 4, 152, 128, T["text"], "Display-Bold", tracking=-0.035, per_glyph=rise)
-    name2 = text("Hussaini", M - 4, 268, 128, T["text"], "Display-Bold", tracking=-0.035,
-                 per_glyph=lambda i, ch: ("g", f"animation-delay:{0.25 + i*0.045:.3f}s"))
+    # ---- left column type
+    rise = lambda base: (lambda i, ch: ("g", f"animation-delay:{base + i*0.045:.3f}s"))
+    name = (text(NAME_1, M - 5, 158, 124, T["text"], "Display-Bold", tracking=-0.04, per_glyph=rise(.05)) +
+            text(NAME_2, M - 5, 276, 124, T["text"], "Display-Bold", tracking=-0.04, per_glyph=rise(.22)))
+    assert width(NAME_2, 124, "Display-Bold", -0.04) < BX - M - 20
 
     lines = [("Founder of Launch Nest Studio.", T["text"])] + [
-        (l, T["muted"]) for l in wrap("I build websites, search visibility and compliance software for Australian businesses.", 22, 492, "Regular")]
-    stmt_svg = "".join(
-        text(l, M, 334 + i * 32, 22, c, "Regular", cls="f", style=f"animation-delay:{0.75 + i*0.08:.2f}s")
-        for i, (l, c) in enumerate(lines)
-    )
+        (l, T["muted"]) for l in wrap("I design and build websites, search visibility and compliance software.", 21, BX - M - 50)]
+    stmt = "".join(text(l, M, 340 + i * 31, 21, c, "Regular", cls="f", style=f"animation-delay:{.8 + i*.08:.2f}s")
+                   for i, (l, c) in enumerate(lines))
 
-    # Adelaide label
-    lab = text("Adelaide", ax - 14, ay + 6, 18, T["text"], "SemiBold", anchor="end", cls="f", style="animation-delay:1.4s")
-
-    # bottom facts row
-    cols = [("Launch Nest Studio", "Founder. Web, brand, search."),
-            ("FormaOS", "Multi-tenant compliance SaaS."),
-            ("AI-native", "Agent-built, production-grade.")]
-    cw = (W - 2 * M) / 3
     facts = ""
-    for i, (t1, t2) in enumerate(cols):
-        x = M + i * cw + (0 if i == 0 else 24)
-        facts += text(t1, x, 486, 20, T["text"], "SemiBold", cls="f", style=f"animation-delay:{1.0 + i*0.1:.2f}s")
-        assert width(t2, 18) < cw - 32, t2
-        facts += text(t2, x, 516, 18, T["muted"], "Regular", cls="f", style=f"animation-delay:{1.08 + i*0.1:.2f}s")
-        if i:
-            facts += f'<line x1="{M + i*cw:.1f}" y1="458" x2="{M + i*cw:.1f}" y2="524" stroke="{T["line"]}" class="vl" style="animation-delay:{0.95 + i*0.1:.2f}s"/>'
+    cols = [("Launch Nest Studio", "Founder and CEO"), ("FormaOS", "Compliance SaaS")]
+    cw = (BX - 2 * M) / 2
+    for i, (a, b) in enumerate(cols):
+        x = M + i * (cw + 10) + (14 if i else 0)
+        facts += text(a, x, 500, 19, T["text"], "SemiBold", cls="f", style=f"animation-delay:{1.05 + i*.1:.2f}s")
+        facts += text(b, x, 528, 17, T["muted"], "Regular", cls="f", style=f"animation-delay:{1.12 + i*.1:.2f}s")
+    facts += f'<line x1="{M + cw + 10:.1f}" y1="474" x2="{M + cw + 10:.1f}" y2="538" stroke="{T["line"]}" class="vl" style="animation-delay:1s"/>'
 
-    style = f'''
-.g{{animation:rise 1.1s {EASE} both}}
-@keyframes rise{{from{{transform:translateY(150px)}}}}
-.f{{animation:fade .9s {EASE} both}}
-@keyframes fade{{from{{opacity:0;transform:translateY(10px)}}}}
-.d{{fill:{T["dot"]};transform-box:fill-box;transform-origin:center;animation:ap .6s {EASE} both,rp 6s linear infinite}}
+    # ---- block foot
+    foot = (text("Adelaide, South Australia", BX + 34, 500, 19, T["on"], "SemiBold", cls="f", style="animation-delay:1.5s") +
+            text("Working with businesses Australia-wide", BX + 34, 528, 17, T["on_muted"], "Regular", cls="f", style="animation-delay:1.6s"))
+    lab = text("Adelaide", ax - 14, ay + 6, 17, T["on"], "SemiBold", anchor="end", cls="f", style="animation-delay:1.5s")
+
+    style = COMMON + f'''
+.g{{animation:rise 1.2s {EASE} both}}
+@keyframes rise{{from{{transform:translateY(160px)}}}}
+.blk{{transform-box:fill-box;transform-origin:right;animation:blk 1.1s {EASE} both}}
+@keyframes blk{{from{{transform:scaleX(0)}}}}
+.d{{fill:{T["on_dot"]};transform-box:fill-box;transform-origin:center;animation:ap .7s {EASE} both,rp 7s linear infinite}}
 @keyframes ap{{from{{opacity:0;transform:scale(0)}}}}
-@keyframes rp{{0%{{fill:{T["dot"]}}}1%{{fill:{T["accent"]}}}5%{{fill:{T["dot"]}}}100%{{fill:{T["dot"]}}}}}
-.route{{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.2s {EASE} forwards}}
+@keyframes rp{{0%{{fill:{T["on_dot"]}}}1.2%{{fill:{T["on"]}}}6%{{fill:{T["on_dot"]}}}100%{{fill:{T["on_dot"]}}}}}
+.route{{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.3s {EASE} forwards}}
 @keyframes draw{{to{{stroke-dashoffset:0}}}}
-.pop{{transform-box:fill-box;transform-origin:center;animation:ap .5s {EASE} both}}
-.hl{{transform-box:fill-box;transform-origin:left;animation:hl 1.2s {EASE} both;animation-delay:.9s}}
-@keyframes hl{{from{{transform:scaleX(0)}}}}
-.vl{{transform-box:fill-box;transform-origin:top;animation:vl .8s {EASE} both}}
-@keyframes vl{{from{{transform:scaleY(0)}}}}
-.ring{{transform-box:fill-box;transform-origin:center;animation:ring 3s ease-out infinite}}
-@keyframes ring{{0%{{transform:scale(.3);opacity:1}}100%{{transform:scale(2.6);opacity:0}}}}'''
+.ring{{transform-box:fill-box;transform-origin:center;animation:ring 3s cubic-bezier(.2,.6,.3,1) infinite}}
+@keyframes ring{{0%{{transform:scale(.4);opacity:1}}100%{{transform:scale(3.2);opacity:0}}}}'''
 
     body = f'''{frame(T, H)}
-<clipPath id="nm"><rect x="0" y="20" width="540" height="270"/></clipPath>
-<g clip-path="url(#nm)">{name1}{name2}</g>
-{stmt_svg}
-{"".join(dot_svg)}
+<rect x="{BX}" y="1" width="{W - BX - 1}" height="{H - 2}" fill="{T["accent"]}" class="blk"/>
+<clipPath id="nm"><rect x="0" y="20" width="{BX - 10}" height="276"/></clipPath>
+<g clip-path="url(#nm)">{name}</g>
+{stmt}
+<line x1="{M}" y1="452" x2="{BX - M}" y2="452" stroke="{T["line"]}" class="hl" style="animation-delay:.95s"/>
+{facts}
+{dot_svg}
 {routes}
-<circle cx="{ax:.1f}" cy="{ay:.1f}" r="7" fill="none" stroke="{T["accent"]}" stroke-width="1.5" class="ring" style="animation-delay:1.4s"/>
-<circle cx="{ax:.1f}" cy="{ay:.1f}" r="7" fill="none" stroke="{T["accent"]}" stroke-width="1.5" class="ring" style="animation-delay:2.9s"/>
-<circle cx="{ax:.1f}" cy="{ay:.1f}" r="6" fill="{T["accent"]}" class="pop" style="animation-delay:1.2s"/>
+<circle cx="{ax:.1f}" cy="{ay:.1f}" r="7" fill="none" stroke="{T["on"]}" stroke-width="1.5" class="ring" style="animation-delay:1.6s"/>
+<circle cx="{ax:.1f}" cy="{ay:.1f}" r="7" fill="none" stroke="{T["on"]}" stroke-width="1.5" class="ring" style="animation-delay:3.1s"/>
+<circle cx="{ax:.1f}" cy="{ay:.1f}" r="6.5" fill="{T["on"]}" class="pop" style="animation-delay:1.4s"/>
 {lab}
-<line x1="{M}" y1="436" x2="{W-M}" y2="436" stroke="{T["line"]}" class="hl"/>
-{facts}'''
-    return svg_doc("hero", H, "Ejaz Hussaini. Founder of Launch Nest Studio, building FormaOS. Adelaide, Australia.", style, body)
+<line x1="{BX + 34}" y1="452" x2="{W - 34}" y2="452" stroke="{T["on"]}" stroke-opacity=".35" class="hl" style="animation-delay:1.3s"/>
+{foot}'''
+    return doc(H, f"{NAME_1} {NAME_2}. Founder of Launch Nest Studio, building FormaOS. Adelaide, South Australia.", style, body)
 
 
 # =====================================================================
-# SEARCH — query types, client climbs to position 1, chart draws
+# SEARCH
 # =====================================================================
 def search(T):
     reset()
-    H = 500
-    D = 12  # loop seconds
+    H, D, M = 540, 12, 40
     pct = lambda s: f"{s / D * 100:.2f}%"
-    M = 40
-    # search field
-    q = "electrician adelaide"
-    qx, qy = M + 52, 78
-    xs, qw = glyph_x_positions(q, 20, "Regular")
-    glyph_css = []
-    def glyph_reveal(i, ch):
-        t = (0.4 + i * 0.055) / D * 100
-        glyph_css.append(f".t{i}{{animation:t{i} {D}s step-end infinite}}@keyframes t{i}{{0%{{opacity:0}}{t:.2f}%{{opacity:1}}100%{{opacity:1}}}}")
-        return (f"t{i}", "")
-    # caret keyframes follow glyph positions while typing, then idle blink
-    caret_kf = []
-    t0, dt = 0.4, 0.055
-    caret_kf.append(f"0%{{transform:translateX(0)}}")
-    for i, x in enumerate(xs):
-        caret_kf.append(f"{(t0 + i*dt)/D*100:.2f}%{{transform:translateX({x:.1f}px)}}")
-    caret_kf.append(f"100%{{transform:translateX({qw:.1f}px)}}")
-
-    field = f'''
-<rect x="{M}" y="{40}" width="540" height="58" fill="{T["panel"]}" stroke="{T["line"]}"/>
-<circle cx="{M+26}" cy="68" r="8" fill="none" stroke="{T["muted"]}" stroke-width="2"/>
-<line x1="{M+32}" y1="74" x2="{M+38}" y2="80" stroke="{T["muted"]}" stroke-width="2" stroke-linecap="round"/>
-<g class="loopfade">{text(q, qx, qy + 2, 20, T["text"], "Regular", per_glyph=glyph_reveal)}
-<rect x="{qx + 1}" y="{qy - 16}" width="2" height="22" fill="{T["accent"]}" class="caret"/></g>'''
-
-    # result rows
-    rows_y0, rh = 126, 70
-    labels = ""
-    for i in range(5):
-        labels += text(str(i + 1), M + 14, rows_y0 + i * rh + 42, 22, T["muted"], "SemiBold", anchor="middle")
-    rx, rw = M + 44, 496
-    # stage times (s) where the client passes a row
-    stages = [3.2, 4.2, 5.2, 6.2]
     hold_end = 10.6
 
-    def row_kf(name, moves):
-        """moves: list of (time, from_idx, to_idx)."""
-        frames = [f"0%{{transform:translateY(0)}}"]
-        cur = 0
+    # --- query field with typed text and caret
+    q = "electrician adelaide"
+    qx, qy = M + 54, 82
+    xs, qw = glyph_x_positions(q, 20, "Regular")
+    gcss = []
+    def reveal(i, ch):
+        t = (0.5 + i * 0.06) / D * 100
+        gcss.append(f".t{i}{{animation:t{i} {D}s step-end infinite}}@keyframes t{i}{{0%{{opacity:0}}{t:.2f}%{{opacity:1}}100%{{opacity:1}}}}")
+        return (f"t{i}", "")
+    ck = ["0%{transform:translateX(0)}"] + [f"{(0.5 + i*0.06)/D*100:.2f}%{{transform:translateX({x:.1f}px)}}" for i, x in enumerate(xs)] + [f"100%{{transform:translateX({qw:.1f}px)}}"]
+    field = f'''
+<rect x="{M}" y="44" width="540" height="62" fill="{T["panel"]}" stroke="{T["line"]}"/>
+<circle cx="{M+27}" cy="73" r="8" fill="none" stroke="{T["muted"]}" stroke-width="2"/>
+<line x1="{M+33}" y1="79" x2="{M+39}" y2="85" stroke="{T["muted"]}" stroke-width="2" stroke-linecap="round"/>
+<g class="lf">{text(q, qx, qy, 20, T["text"], "Regular", per_glyph=reveal)}
+<rect x="{qx + 1}" y="{qy - 17}" width="2" height="23" fill="{T["accent"]}" class="caret"/></g>
+<rect x="{M + 540 - 92}" y="56" width="80" height="38" fill="{T["accent"]}"/>
+{text("Search", M + 540 - 52, 81, 16, T["on"], "SemiBold", anchor="middle")}'''
+
+    # --- results
+    y0, rh = 132, 76
+    rx, rw = M + 46, 494
+    labels = "".join(text(str(i + 1), M + 14, y0 + i * rh + 46, 22, T["faint"], "SemiBold", anchor="middle") for i in range(5))
+    stages = [3.3, 4.3, 5.3, 6.3]
+    comps = ["Compare quotes from local electricians", "24/7 emergency callouts, all suburbs",
+             "Electrical contractors near you", "Find a licensed sparky in minutes"]
+
+    def kf(name, moves):
+        fr, cur = ["0%{transform:translateY(0)}"], 0
         for t, dy in moves:
-            frames.append(f"{pct(t - 0.05)}{{transform:translateY({cur}px)}}")
+            fr.append(f"{pct(t - .05)}{{transform:translateY({cur}px)}}")
             cur += dy
-            frames.append(f"{pct(t + 0.6)}{{transform:translateY({cur}px)}}")
-        frames.append(f"100%{{transform:translateY({cur}px)}}")
-        return f"@keyframes {name}{{{''.join(frames)}}}"
+            fr.append(f"{pct(t + .65)}{{transform:translateY({cur}px)}}")
+        fr.append(f"100%{{transform:translateY({cur}px)}}")
+        return f"@keyframes {name}{{{''.join(fr)}}}"
 
-    css_rows = ""
-    rows = ""
-    widths = [(300, 200), (260, 230), (330, 180), (280, 210)]
-    for i in range(4):  # competitors start at idx 0..3; competitor i is passed at stage 3-i
-        t = stages[3 - i]
-        css_rows += f".r{i}{{animation:r{i} {D}s cubic-bezier(.65,0,.35,1) infinite}}" + row_kf(f"r{i}", [(t, rh)])
-        y = rows_y0 + i * rh
-        a, b = widths[i]
-        rows += f'''<g class="r{i}">
-  <rect x="{rx}" y="{y + 6}" width="{rw}" height="{rh - 12}" fill="{T["bg"]}"/>
-  <rect x="{rx + 18}" y="{y + 19}" width="{a}" height="12" fill="{T["line2"]}"/>
-  <rect x="{rx + 18}" y="{y + 40}" width="{b}" height="9" fill="{T["line"]}"/>
-</g>'''
-    css_rows += f".rc{{animation:rc {D}s cubic-bezier(.65,0,.35,1) infinite}}" + row_kf("rc", [(t, -rh) for t in stages])
-    yc = rows_y0 + 4 * rh
-    rows += f'''<g class="rc">
-  <rect x="{rx}" y="{yc + 6}" width="{rw}" height="{rh - 12}" fill="{T["panel"]}" stroke="{T["line"]}"/>
-  <rect x="{rx}" y="{yc + 6}" width="4" height="{rh - 12}" fill="{T["accent"]}"/>
-  {text("Licensed electricians in Adelaide", rx + 20, yc + 33, 19, T["text"], "SemiBold")}
-  {text("your-business.com.au", rx + 20, yc + 55, 16, T["accent"], "Medium")}
-</g>'''
+    css, rows = "", ""
+    for i, title in enumerate(comps):
+        css += f".r{i}{{animation:r{i} {D}s {INOUT} infinite}}" + kf(f"r{i}", [(stages[3 - i], rh)])
+        y = y0 + i * rh
+        rows += f'''<g class="r{i}"><rect x="{rx}" y="{y + 6}" width="{rw}" height="{rh - 12}" fill="{T["bg"]}"/>
+{text(title, rx + 20, y + 35, 18, T["muted"], "Medium")}
+<rect x="{rx + 20}" y="{y + 48}" width="{[150,190,130,170][i]}" height="8" fill="{T["line"]}"/></g>'''
+    css += f".rc{{animation:rc {D}s {INOUT} infinite}}" + kf("rc", [(t, -rh) for t in stages])
+    yc = y0 + 4 * rh
+    rows += f'''<g class="rc"><rect x="{rx}" y="{yc + 6}" width="{rw}" height="{rh - 12}" fill="{T["accent"]}"/>
+{text("Licensed electricians in Adelaide", rx + 20, yc + 35, 18, T["on"], "SemiBold")}
+{text("your-business.com.au", rx + 20, yc + 57, 15, T["on_muted"], "Medium")}
+<g transform="translate({rx + rw - 40} {yc + 38})"><path d="M-8 -2 L-1 5 L10 -7" fill="none" stroke="{T["on"]}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g></g>'''
 
-    # chart
-    cx0, cy0, cwid, chei = 640, 60, 320, 330
+    # --- chart card
+    cx0, cy0, cwid, chei = 650, 116, 300, 300
+    card = f'<rect x="{cx0 - 30}" y="44" width="{W - cx0 - 10}" height="{H - 84}" fill="{T["panel"]}" stroke="{T["line"]}"/>'
     pos = [19, 18, 18, 15, 13, 12, 9, 8, 6, 4, 3, 2, 1]
     px = lambda i: cx0 + i * cwid / (len(pos) - 1)
     py = lambda v: cy0 + (v - 1) / 19 * chei
-    pts = " ".join(f"{px(i):.1f},{py(v):.1f}" for i, v in enumerate(pos))
+    P = [(px(i), py(v)) for i, v in enumerate(pos)]
+    pts = " ".join(f"{x:.1f},{y:.1f}" for x, y in P)
+    area = f"M{P[0][0]:.1f} {cy0 + chei} " + " ".join(f"L{x:.1f} {y:.1f}" for x, y in P) + f" L{P[-1][0]:.1f} {cy0 + chei} Z"
     grid = ""
     for v in (1, 5, 10, 15, 20):
         grid += f'<line x1="{cx0}" y1="{py(v):.1f}" x2="{cx0 + cwid}" y2="{py(v):.1f}" stroke="{T["line"]}"/>'
-        grid += text(str(v), cx0 - 12, py(v) + 6, 16, T["muted"], "Medium", anchor="end")
-    chart = f'''{grid}
-{text("Week 1", cx0, cy0 + chei + 40, 16, T["muted"], "Medium")}
-{text("Week 12", cx0 + cwid, cy0 + chei + 40, 16, T["muted"], "Medium", anchor="end")}
-{text("Average position", cx0, cy0 - 24, 18, T["text"], "SemiBold")}
-<polyline points="{pts}" pathLength="1" fill="none" stroke="{T["accent"]}" stroke-width="2.5" stroke-linejoin="round" class="line"/>
-<g class="end"><circle cx="{px(12):.1f}" cy="{py(1):.1f}" r="6" fill="{T["accent"]}"/></g>'''
+        grid += text(str(v), cx0 - 10, py(v) + 5, 14, T["faint"], "Medium", anchor="end")
+    # motion head synced to the clip reveal (keyTimes by x, keyPoints by length)
+    seg = [math.dist(P[i], P[i + 1]) for i in range(len(P) - 1)]
+    L = sum(seg)
+    cum = [0]
+    for sgl in seg:
+        cum.append(cum[-1] + sgl)
+    t_a, t_b = 2.6 / D, 6.9 / D
+    kt = ["0", f"{t_a:.4f}"] + [f"{t_a + (t_b - t_a) * (P[i][0] - P[0][0]) / cwid:.4f}" for i in range(1, len(P))] + ["1"]
+    kp = ["0", "0"] + [f"{cum[i] / L:.4f}" for i in range(1, len(P))] + ["1"]
+    mpath = "M" + " L".join(f"{x:.1f} {y:.1f}" for x, y in P)
+    chart = f'''{card}
+{text("Average position", cx0 - 6, 82, 19, T["text"], "SemiBold")}
+{grid}
+<clipPath id="rv"><rect x="{cx0 - 2}" y="{cy0 - 20}" width="{cwid + 14}" height="{chei + 30}" class="rv"/></clipPath>
+<g clip-path="url(#rv)">
+  <path d="{area}" fill="{T["accent"]}" fill-opacity=".12"/>
+  <polyline points="{pts}" fill="none" stroke="{T["accent"]}" stroke-width="2.5" stroke-linejoin="round"/>
+</g>
+<circle r="6" fill="{T["accent"]}" stroke="{T["panel"]}" stroke-width="3">
+  <animateMotion path="{mpath}" dur="{D}s" repeatCount="indefinite" keyTimes="{';'.join(kt)}" keyPoints="{';'.join(kp)}" calcMode="linear"/>
+</circle>
+<g class="badge"><rect x="{P[-1][0] - 72}" y="{P[-1][1] - 46}" width="56" height="30" fill="{T["accent"]}"/>
+{text("#1", P[-1][0] - 44, P[-1][1] - 25, 16, T["on"], "Bold", anchor="middle")}</g>
+{text("Week 1", cx0, cy0 + chei + 34, 14, T["faint"], "Medium")}
+{text("Week 12", cx0 + cwid, cy0 + chei + 34, 14, T["faint"], "Medium", anchor="end")}'''
 
-    style = f'''
-{"".join(glyph_css)}
+    style = COMMON + f'''
+{"".join(gcss)}
 .caret{{animation:caret {D}s linear infinite,blink 1s steps(1) infinite}}
-@keyframes caret{{{"".join(caret_kf)}}}
+@keyframes caret{{{"".join(ck)}}}
 @keyframes blink{{50%{{opacity:0}}}}
-.loopfade,.rows,.cl{{animation:lf {D}s linear infinite}}
-@keyframes lf{{0%{{opacity:0}}2%{{opacity:1}}{pct(hold_end)}{{opacity:1}}{pct(hold_end + 0.6)}{{opacity:0}}100%{{opacity:0}}}}
-{css_rows}
-.line{{stroke-dasharray:1;animation:ln {D}s linear infinite}}
-@keyframes ln{{0%,{pct(2.6)}{{stroke-dashoffset:1}}{pct(6.9)}{{stroke-dashoffset:0}}100%{{stroke-dashoffset:0}}}}
-.end{{transform-box:fill-box;transform-origin:center;animation:end {D}s {EASE} infinite}}
-@keyframes end{{0%,{pct(6.8)}{{transform:scale(0)}}{pct(7.3)}{{transform:scale(1)}}100%{{transform:scale(1)}}}}'''
-    # glyph reveal: each glyph hidden until its delay, within each loop. Use per-glyph delay on a loop-length animation.
-    style = style.replace(".t{opacity:0;animation:t", ".t{opacity:0;animation:t")
+.lf,.rows{{animation:lf {D}s linear infinite}}
+@keyframes lf{{0%{{opacity:0}}2%{{opacity:1}}{pct(hold_end)}{{opacity:1}}{pct(hold_end + .6)}{{opacity:0}}100%{{opacity:0}}}}
+{css}
+.rv{{transform-box:fill-box;transform-origin:left;animation:rv {D}s linear infinite}}
+@keyframes rv{{0%,{pct(2.6)}{{transform:scaleX(0)}}{pct(6.9)}{{transform:scaleX(1)}}{pct(hold_end)}{{transform:scaleX(1)}}100%{{transform:scaleX(0)}}}}
+.badge{{transform-box:fill-box;transform-origin:center;animation:bd {D}s {EASE} infinite}}
+@keyframes bd{{0%,{pct(6.8)}{{opacity:0;transform:translateY(8px)}}{pct(7.3)}{{opacity:1;transform:translateY(0)}}{pct(hold_end)}{{opacity:1}}{pct(hold_end+.4)}{{opacity:0}}100%{{opacity:0}}}}'''
     body = f'''{frame(T, H)}
 {field}
 {labels}
 <g class="rows">{rows}</g>
-<g class="cl">{chart}</g>'''
-    return svg_doc("search", H, "Search visibility: a local business climbing from position five to position one", style, body)
+{chart}'''
+    return doc(H, "Search visibility: a local business climbing from position five to position one", style, body)
 
 
 # =====================================================================
-# ARCHITECTURE — FormaOS system diagram with live data flow
+# ARCHITECTURE
 # =====================================================================
+def icon(kind, x, y, col):
+    if kind == "browser":
+        return (f'<rect x="{x}" y="{y}" width="26" height="20" fill="none" stroke="{col}" stroke-width="2"/>'
+                f'<line x1="{x}" y1="{y + 6}" x2="{x + 26}" y2="{y + 6}" stroke="{col}" stroke-width="2"/>')
+    if kind == "phone":
+        return (f'<rect x="{x + 6}" y="{y - 2}" width="15" height="24" fill="none" stroke="{col}" stroke-width="2"/>'
+                f'<line x1="{x + 11}" y1="{y + 18}" x2="{x + 16}" y2="{y + 18}" stroke="{col}" stroke-width="2"/>')
+    return ""
+
+
 def architecture(T):
     reset()
-    H = 580
+    H = 640
+    TOP = 104
+    els = ""
+    heads = [("CLIENTS", 40), ("APPLICATION", 310), ("DATA", 620), ("SERVICES", 40)]
+    for i, (h, x) in enumerate(heads):
+        y = 58 if i < 3 else 470
+        els += text(h, x, y, 13, T["muted"], "SemiBold", tracking=0.12, cls="f", style=f"animation-delay:{i*.06:.2f}s")
 
-    def box(x, y, w, h, title, sub=None, dashed=False, fill=None, delay=0):
+    def box(x, y, w, h, title, sub=None, dashed=False, delay=0.0, ic=None):
         dash = ' stroke-dasharray="5 5"' if dashed else ""
-        s = f'<g class="bx" style="animation-delay:{delay:.2f}s"><rect x="{x}" y="{y}" width="{w}" height="{h}" fill="{fill or T["panel"]}" stroke="{T["line2"]}"{dash}/>'
-        s += text(title, x + 18, y + 34, 19, T["text"], "SemiBold")
+        s = f'<g class="bx" style="animation-delay:{delay:.2f}s"><rect x="{x}" y="{y}" width="{w}" height="{h}" fill="{T["panel"]}" stroke="{T["line2"]}"{dash}/>'
+        s += text(title, x + 20, y + 35, 19, T["text"], "SemiBold")
         if sub:
-            s += text(sub, x + 18, y + 58, 16, T["muted"], "Regular")
+            s += text(sub, x + 20, y + 59, 15, T["muted"], "Regular")
+        if ic:
+            s += icon(ic, x + w - 46, y + 18, T["faint"])
         return s + "</g>"
 
-    els = ""
-    # clients
-    clients = [("Web app", "Browser"), ("iOS app", "App Store"), ("Android app", "Google Play")]
-    cy = [70, 172, 274]
-    for i, (a, b) in enumerate(clients):
-        els += box(40, cy[i], 180, 76, a, b, delay=0.1 + i * 0.08)
-    # app
-    els += box(310, 70, 220, 280, "Next.js", "App Router + API", delay=0.35)
-    app_inner = ["Auth + sessions", "Tenant routing", "Audit logging"]
-    for i, t in enumerate(app_inner):
-        y = 160 + i * 56
-        els += f'<g class="bx" style="animation-delay:{0.45 + i*0.06:.2f}s"><rect x="328" y="{y}" width="184" height="42" fill="{T["bg"]}" stroke="{T["line"]}"/>'
-        els += text(t, 344, y + 27, 16, T["text"], "Medium") + "</g>"
-    # database
-    els += box(620, 70, 340, 280, "Supabase Postgres", "Row-level security per tenant", delay=0.55)
-    tenants = ["NDIS provider", "Aged care", "Healthcare"]
-    for i, t in enumerate(tenants):
-        y = 160 + i * 56
-        els += f'<g class="bx" style="animation-delay:{0.65 + i*0.06:.2f}s"><rect x="638" y="{y}" width="304" height="42" fill="{T["bg"]}" stroke="{T["line"]}"/>'
-        els += f'<rect x="638" y="{y}" width="304" height="42" fill="{T["accent"]}" class="hit" style="animation-delay:{3.1 + i*1.6:.2f}s"/>'
-        els += text(t, 656, y + 27, 16, T["text"], "Medium")
-        # padlock
-        lx, ly = 914, y + 14
-        els += f'<rect x="{lx}" y="{ly + 6}" width="14" height="11" fill="{T["muted"]}"/><path d="M{lx+3} {ly+6} v-3 a4 4 0 0 1 8 0 v3" fill="none" stroke="{T["muted"]}" stroke-width="2"/>'
-        els += "</g>"
-    # services bus
-    services = [("Stripe", "Billing", False), ("Resend", "Email", False), ("Trigger.dev", "Background jobs", False), ("Claude API", "AI features, planned", True)]
-    sw = (920 - 3 * 20) / 4
-    sy = 450
-    bus_y = 410
-    for i, (a, b, dashed) in enumerate(services):
-        x = 40 + i * (sw + 20)
-        els += box(x, sy, sw, 86, a, b, dashed=dashed, delay=0.8 + i * 0.07)
+    cy = [TOP, TOP + 100, TOP + 200]
+    for i, (a, b, ic) in enumerate([("Web app", "Browser", "browser"), ("iOS app", "App Store", "phone"), ("Android app", "Google Play", "phone")]):
+        els += box(40, cy[i], 190, 78, a, b, delay=.1 + i * .08, ic=ic)
 
-    # connectors
+    ax0, aw = 310, 230
+    els += box(ax0, TOP, aw, 278, "Next.js", "App Router + API", delay=.35)
+    for i, t in enumerate(["Auth + sessions", "Tenant routing", "Audit logging"]):
+        y = TOP + 92 + i * 58
+        els += f'<g class="bx" style="animation-delay:{.45 + i*.06:.2f}s"><rect x="{ax0 + 18}" y="{y}" width="{aw - 36}" height="44" fill="{T["bg"]}" stroke="{T["line"]}"/>'
+        els += f'<rect x="{ax0 + 18}" y="{y}" width="3" height="44" fill="{T["accent"]}"/>'
+        els += text(t, ax0 + 36, y + 28, 15, T["text"], "Medium") + "</g>"
+
+    dx0, dw = 620, 340
+    els += box(dx0, TOP, dw, 278, "Supabase Postgres", "Row-level security per tenant", delay=.55)
+    for i, t in enumerate(["NDIS provider", "Aged care", "Healthcare"]):
+        y = TOP + 92 + i * 58
+        els += f'<g class="bx" style="animation-delay:{.65 + i*.06:.2f}s"><rect x="{dx0 + 18}" y="{y}" width="{dw - 36}" height="44" fill="{T["bg"]}" stroke="{T["line"]}"/>'
+        els += text(t, dx0 + 36, y + 28, 15, T["text"], "Medium")
+        # record cells that fill in as writes land
+        for k in range(6):
+            cx = dx0 + 168 + k * 18
+            els += f'<rect x="{cx}" y="{y + 16}" width="12" height="12" fill="{T["line"]}"/>'
+            els += f'<rect x="{cx}" y="{y + 16}" width="12" height="12" fill="{T["accent"]}" class="cell" style="animation-delay:{3.0 + i*1.3 + k*0.12:.2f}s"/>'
+        lx, ly = dx0 + dw - 46, y + 13
+        els += f'<rect x="{lx}" y="{ly + 7}" width="14" height="11" fill="{T["muted"]}"/><path d="M{lx+3} {ly+7} v-3 a4 4 0 0 1 8 0 v3" fill="none" stroke="{T["muted"]}" stroke-width="2"/></g>'
+
+    services = [("Stripe", "Billing", False), ("Resend", "Email", False), ("Trigger.dev", "Background jobs", False), ("Claude API", "AI features, planned", True)]
+    sw, sy, bus = (920 - 60) / 4, 494, 432
+    for i, (a, b, d) in enumerate(services):
+        els += box(40 + i * (sw + 20), sy, sw, 96, a, b, dashed=d, delay=.8 + i * .07)
+
     paths = []
     for i in range(3):
-        y = cy[i] + 38
-        paths.append((f"M220 {y} H310", "fwd", 0.0 + i * 0.9))
-    paths.append(("M530 181 H620", "fwd", 1.2))
-    paths.append(("M620 239 H530", "back", 2.0))
-    centers = [40 + i * (sw + 20) + sw / 2 for i in range(4)]
-    for i, c in enumerate(centers):
-        paths.append((f"M420 350 V{bus_y - 12} Q420 {bus_y} {420 + (12 if c > 420 else -12)} {bus_y} H{c + (-12 if c > 420 else 12):.1f} Q{c:.1f} {bus_y} {c:.1f} {bus_y + 12} V{sy}", "fwd", 1.6 + i * 0.7))
+        y = cy[i] + 39
+        paths.append((f"M230 {y} H{ax0}", T["text"], 0.9 * i))
+    paths.append((f"M{ax0 + aw} {TOP + 114} H{dx0}", T["accent"], 1.0))
+    paths.append((f"M{dx0} {TOP + 230} H{ax0 + aw}", T["text"], 1.8))
+    mid = ax0 + aw / 2
+    for i in range(4):
+        c = 40 + i * (sw + 20) + sw / 2
+        sgn = 1 if c > mid else -1
+        paths.append((f"M{mid} {TOP + 278} V{bus - 12} Q{mid} {bus} {mid + 12*sgn} {bus} H{c - 12*sgn:.1f} Q{c:.1f} {bus} {c:.1f} {bus + 12} V{sy}", T["accent"], 1.5 + i * .6))
 
-    lines = ""
-    packets = ""
-    for i, (p, kind, begin) in enumerate(paths):
-        lines += f'<path d="{p}" pathLength="1" fill="none" stroke="{T["line2"]}" stroke-width="1.5" class="wire" style="animation-delay:{0.9 + i*0.05:.2f}s"/>'
-        col = T["accent"] if kind == "fwd" else T["text"]
-        dur = 1.4 if len(p) < 30 else 2.2
-        packets += f'''<rect x="-4" y="-4" width="8" height="8" fill="{col}" opacity="0">
-  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.92;1" dur="{dur}s" begin="{2.4 + begin:.2f}s" repeatCount="indefinite"/>
+    wires, packets = "", ""
+    for i, (p, col, begin) in enumerate(paths):
+        wires += f'<path d="{p}" pathLength="1" fill="none" stroke="{T["line2"]}" stroke-width="1.5" class="wire" style="animation-delay:{.9 + i*.05:.2f}s"/>'
+        wires += f'<path d="{p}" fill="none" stroke="{T["accent"]}" stroke-width="1.5" stroke-dasharray="3 9" class="flow" style="animation-delay:{1.6 + i*.05:.2f}s"/>'
+        dur = 1.5 if len(p) < 30 else 2.4
+        packets += f'''<rect x="-4.5" y="-4.5" width="9" height="9" fill="{col}" opacity="0">
+  <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.08;.9;1" dur="{dur}s" begin="{2.4 + begin:.2f}s" repeatCount="indefinite"/>
   <animateMotion path="{p}" dur="{dur}s" begin="{2.4 + begin:.2f}s" repeatCount="indefinite" calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines=".5 0 .5 1"/>
 </rect>'''
-        # repeat interval is dur; stagger via begin only — acceptable continuous flow
 
-    style = f'''
+    style = COMMON + f'''
 .bx{{animation:bx .8s {EASE} both}}
-@keyframes bx{{from{{opacity:0;transform:translateY(8px)}}}}
+@keyframes bx{{from{{opacity:0;transform:translateY(10px)}}}}
 .wire{{stroke-dasharray:1;stroke-dashoffset:1;animation:wire 1s {EASE} forwards}}
 @keyframes wire{{to{{stroke-dashoffset:0}}}}
-.hit{{opacity:0;animation:hit 4.8s ease-out infinite}}
-@keyframes hit{{0%{{opacity:.28}}25%{{opacity:0}}100%{{opacity:0}}}}'''
-    body = f'''{frame(T, H)}
-{lines}
-{els}
-{packets}'''
-    return svg_doc("architecture", H, "FormaOS architecture: web, iOS and Android clients, Next.js app, Supabase Postgres with row-level security per tenant, and Stripe, Resend, Trigger.dev and Claude API services", style, body)
+.flow{{opacity:0;animation:fl .6s ease both,march 1.2s linear infinite}}
+@keyframes fl{{to{{opacity:.45}}}}
+@keyframes march{{to{{stroke-dashoffset:-12}}}}
+.cell{{opacity:0;animation:cell 3.9s steps(1) infinite}}
+@keyframes cell{{0%{{opacity:1}}70%{{opacity:1}}71%,100%{{opacity:0}}}}'''
+    return doc(H, "FormaOS architecture: web, iOS and Android clients, a Next.js app, Supabase Postgres with row-level security per tenant, and Stripe, Resend, Trigger.dev and Claude API services", style, f"{frame(T, H)}{wires}{els}{packets}")
 
 
 # =====================================================================
-# SHIP — git graph of a release
+# SHIP
 # =====================================================================
 def ship(T):
     reset()
-    H = 300
-    D = 11
+    H, D = 380, 12
     pct = lambda s: f"{s / D * 100:.2f}%"
-    my = 150
-    x0, x1 = 60, 940
-    branch_y = 70
-    branches = [("feature/ui", 120, 300, [175, 235]),
-                ("feature/api", 330, 520, [385, 455]),
-                ("qa/agent-run", 550, 740, [605, 675])]
+    my, x0, x1, by = 156, 60, 940, 76
+    branches = [("feature/ui", 120, 300, [178, 214]), ("feature/api", 330, 520, [388, 424]), ("qa/agent-run", 550, 740, [608, 644])]
     main_nodes = [(80, "Scope", "Brief and plan"), (300, "Design", "Design system"), (520, "Build", "Next.js + Supabase"),
-                  (740, "Test", "Agent QA run"), (900, "Release", "Live")]
-    speed = (x1 - x0) / 6.0  # px per second for the main line
-    t_at = lambda x: 0.3 + (x - x0) / speed
-
+                  (740, "Test", "Automated QA"), (900, "Release", "Production")]
+    speed = (x1 - x0) / 6.2
+    t_at = lambda x: .3 + (x - x0) / speed
+    t_end = t_at(x1)
+    hold = D - .8
     timed = []
-    def tcls(kind, t_on):
+
+    def tc(kind, t_on):
         k = f"{kind}{len(timed)}"
-        a, b = t_on / D * 100, min((t_on + 0.5) / D * 100, 99.9)
+        a, b = t_on / D * 100, min((t_on + .5) / D * 100, 99.9)
         if kind == "n":
-            timed.append(f".{k}{{transform-box:fill-box;transform-origin:center;animation:{k} {D}s {EASE} infinite}}"
-                         f"@keyframes {k}{{0%,{a:.2f}%{{transform:scale(0)}}{b:.2f}%,100%{{transform:scale(1)}}}}")
+            timed.append(f".{k}{{transform-box:fill-box;transform-origin:center;animation:{k} {D}s {EASE} infinite}}@keyframes {k}{{0%,{a:.2f}%{{transform:scale(0)}}{b:.2f}%,100%{{transform:scale(1)}}}}")
         else:
-            timed.append(f".{k}{{animation:{k} {D}s {EASE} infinite}}"
-                         f"@keyframes {k}{{0%,{a:.2f}%{{opacity:0;transform:translateY(6px)}}{b:.2f}%,100%{{opacity:1;transform:translateY(0)}}}}")
+            timed.append(f".{k}{{animation:{k} {D}s {EASE} infinite}}@keyframes {k}{{0%,{a:.2f}%{{opacity:0;transform:translateY(6px)}}{b:.2f}%,100%{{opacity:1;transform:translateY(0)}}}}")
         return k
 
-    css = f".main{{stroke-dasharray:1;animation:mn {D}s linear infinite}}@keyframes mn{{0%{{stroke-dashoffset:1}}{pct(t_at(x1))}{{stroke-dashoffset:0}}100%{{stroke-dashoffset:0}}}}"
-    body = f'<path d="M{x0} {my} H{x1}" pathLength="1" fill="none" stroke="{T["line2"]}" stroke-width="2"/>'
-    body += f'<path d="M{x0} {my} H{x1}" pathLength="1" fill="none" stroke="{T["text"]}" stroke-width="2" class="main"/>'
-    r = 40
+    css = (f".main{{stroke-dasharray:1;animation:mn {D}s linear infinite}}@keyframes mn{{0%{{stroke-dashoffset:1}}{pct(t_end)}{{stroke-dashoffset:0}}100%{{stroke-dashoffset:0}}}}"
+           f".head{{animation:hd {D}s linear infinite}}@keyframes hd{{0%,{pct(.3)}{{transform:translateX({x0}px)}}{pct(t_end)}{{transform:translateX({x1}px)}}{pct(t_end + .3)},100%{{transform:translateX({x1}px);opacity:0}}}}")
+    g = f'<path d="M{x0} {my} H{x1}" fill="none" stroke="{T["line2"]}" stroke-width="3"/>'
+    g += f'<path d="M{x0} {my} H{x1}" pathLength="1" fill="none" stroke="{T["text"]}" stroke-width="3" class="main"/>'
+    r = 42
     for i, (name, a, b, commits) in enumerate(branches):
-        p = (f"M{a} {my} C{a + r} {my} {a + r*0.4} {branch_y} {a + r + 10} {branch_y} "
-             f"H{b - r - 10} C{b - r*0.4} {branch_y} {b - r} {my} {b} {my}")
+        p = f"M{a} {my} C{a + r} {my} {a + r*.4} {by} {a + r + 10} {by} H{b - r - 10} C{b - r*.4} {by} {b - r} {my} {b} {my}"
         ta, tb = t_at(a), t_at(b)
-        css += (f".b{i}{{stroke-dasharray:1;animation:b{i} {D}s linear infinite}}"
-                f"@keyframes b{i}{{0%,{pct(ta)}{{stroke-dashoffset:1}}{pct(tb)}{{stroke-dashoffset:0}}100%{{stroke-dashoffset:0}}}}")
-        body += f'<path d="{p}" pathLength="1" fill="none" stroke="{T["line2"]}" stroke-width="2"/>'
-        body += f'<path d="{p}" pathLength="1" fill="none" stroke="{T["accent"]}" stroke-width="2" class="b{i}"/>'
-        for j, cx in enumerate(commits):
-            tc = ta + (tb - ta) * (cx - a) / (b - a)
-            body += f'<circle cx="{cx}" cy="{branch_y}" r="6" fill="{T["bg"]}" stroke="{T["accent"]}" stroke-width="2" class="{tcls('n', tc)}"/>'
-        body += text(name, a + r + 12, branch_y - 20, 16, T["muted"], "mono", cls=tcls("l", ta))
+        css += f".b{i}{{stroke-dasharray:1;animation:b{i} {D}s linear infinite}}@keyframes b{i}{{0%,{pct(ta)}{{stroke-dashoffset:1}}{pct(tb)}{{stroke-dashoffset:0}}100%{{stroke-dashoffset:0}}}}"
+        g += f'<path d="{p}" fill="none" stroke="{T["line2"]}" stroke-width="3"/>'
+        g += f'<path d="{p}" pathLength="1" fill="none" stroke="{T["accent"]}" stroke-width="3" class="b{i}"/>'
+        for cx in commits:
+            tcm = ta + (tb - ta) * (cx - a) / (b - a)
+            g += f'<circle cx="{cx}" cy="{by}" r="7" fill="{T["bg"]}" stroke="{T["accent"]}" stroke-width="3" class="{tc("n", tcm)}"/>'
+        g += text(name, a + r + 12, by - 22, 15, T["muted"], "mono", cls=tc("l", ta))
+        # passing checks badge at the end of each branch
+        cxp = b - r - 12
+        g += f'<g class="{tc("l", tb - .35)}"><rect x="{cxp - 13}" y="{by - 13}" width="26" height="26" fill="{T["accent"]}"/><path d="M{cxp - 6} {by} L{cxp - 1} {by + 5} L{cxp + 7} {by - 5}" fill="none" stroke="{T["on"]}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></g>'
     for i, (x, t1, t2) in enumerate(main_nodes):
         tn = t_at(x)
         last = i == len(main_nodes) - 1
-        fill = T["accent"] if last else T["bg"]
-        stroke = T["accent"] if last else T["text"]
-        body += f'<circle cx="{x}" cy="{my}" r="{9 if last else 7}" fill="{fill}" stroke="{stroke}" stroke-width="2" class="{tcls('n', tn)}"/>'
-        body += text(t1, x, my + 50, 20, T["text"], "SemiBold", anchor="middle", cls=tcls("l", tn))
-        body += text(t2, x, my + 76, 16, T["muted"], "Regular", anchor="middle", cls=tcls("l", tn + 0.05))
-    # release tag
-    tx = 900
-    tw = width("v1.0", 16, "mono") + 24
-    body += f'''<g class="{tcls('l', t_at(tx) + 0.1)}">
-  <rect x="{tx - tw/2:.1f}" y="{my - 52}" width="{tw:.1f}" height="28" fill="{T["accent"]}"/>
-  <path d="M{tx - 6} {my - 24} L{tx} {my - 17} L{tx + 6} {my - 24} Z" fill="{T["accent"]}"/>
-  {text("v1.0", tx, my - 33, 16, T["onaccent"], "mono", anchor="middle")}
-</g>'''
-    hold = pct(D - 0.8)
+        g += f'<circle cx="{x}" cy="{my}" r="{10 if last else 8}" fill="{T["accent"] if last else T["bg"]}" stroke="{T["accent"] if last else T["text"]}" stroke-width="3" class="{tc("n", tn)}"/>'
+        g += text(t1, x, my + 52, 20, T["text"], "SemiBold", anchor="middle", cls=tc("l", tn))
+        g += text(t2, x, my + 78, 15, T["muted"], "Regular", anchor="middle", cls=tc("l", tn + .05))
+    tw = width("v1.0", 15, "mono") + 26
+    g += f'''<g class="{tc("l", t_at(900) + .1)}"><rect x="{900 - tw/2:.1f}" y="{my - 56}" width="{tw:.1f}" height="30" fill="{T["accent"]}"/>
+<path d="M894 {my - 26} L900 {my - 19} L906 {my - 26} Z" fill="{T["accent"]}"/>{text("v1.0", 900, my - 36, 15, T["on"], "mono", anchor="middle")}</g>'''
+    g += f'<circle cx="0" cy="{my}" r="6" fill="{T["accent"]}" class="head"/>'
+
+    # deploy bar
+    dy = 300
+    t_dep0, t_dep1 = t_at(900), t_at(900) + 1.6
+    css += (f".dep{{transform-box:fill-box;transform-origin:left;animation:dep {D}s {INOUT} infinite}}"
+            f"@keyframes dep{{0%,{pct(t_dep0)}{{transform:scaleX(0)}}{pct(t_dep1)},100%{{transform:scaleX(1)}}}}")
+    g += f'<rect x="40" y="{dy - 30}" width="920" height="1" fill="{T["line"]}"/>'
+    g += text("Production deploy", 60, dy + 22, 17, T["text"], "SemiBold")
+    bx0, bw = 260, 560
+    g += f'<rect x="{bx0}" y="{dy + 9}" width="{bw}" height="10" fill="{T["panel2"]}"/>'
+    g += f'<rect x="{bx0}" y="{dy + 9}" width="{bw}" height="10" fill="{T["accent"]}" class="dep"/>'
+    live = tc("l", t_dep1)
+    g += f'<g class="{live}"><circle cx="{bx0 + bw + 30}" cy="{dy + 14}" r="6" fill="{T["accent"]}"/>{text("Live", bx0 + bw + 46, dy + 20, 17, T["text"], "SemiBold")}</g>'
+
     style = f'''{css}
 {"".join(timed)}
 .all{{animation:all {D}s linear infinite}}
-@keyframes all{{0%,{hold}{{opacity:1}}100%{{opacity:0}}}}'''
-    # per-element delays shift the whole loop: the n/lb keyframes start at their own delay, which keeps
-    # nodes in sync with the line on every loop because all animations share the same duration.
-    body = f'{frame(T, H)}<g class="all">{body}</g>'
-    return svg_doc("ship", H, "How I ship: scope, design, build, agent QA, release", style, body)
+@keyframes all{{0%,{pct(hold)}{{opacity:1}}100%{{opacity:0}}}}'''
+    return doc(H, "How I ship: scope, design, build, automated QA, production release", style, f'{frame(T, H)}<g class="all">{g}</g>')
 
 
 # =====================================================================
-# STACK — typographic table
+# STACK
 # =====================================================================
 def stack(T):
     reset()
-    cols = [("Frontend", ["Next.js", "React", "TypeScript", "Tailwind CSS", "shadcn/ui"]),
-            ("Backend", ["Supabase", "PostgreSQL + RLS", "Stripe", "Resend", "Trigger.dev"]),
-            ("Platform", ["Vercel", "iOS + Android", "WordPress", "Figma", "GitHub"]),
-            ("AI + Search", ["Claude Code", "Claude API", "Technical SEO", "AEO", "GEO"])]
-    M = 40
-    cw = (W - 2 * M) / 4
-    top, rh = 64, 48
-    H = top + 24 + rh * 5 + 36
-    body = frame(T, H)
+    blocks = [("Frontend", [("Next.js", "App Router"), ("React", "Server Components"), ("TypeScript", "Strict mode"),
+                            ("Tailwind CSS", "Design tokens"), ("shadcn/ui", "Component system")]),
+              ("Backend", [("Supabase", "Postgres + Auth"), ("Row-level security", "Tenant isolation"), ("Stripe", "Billing"),
+                           ("Resend", "Transactional email"), ("Trigger.dev", "Background jobs")]),
+              ("Platform", [("Vercel", "Hosting + edge"), ("iOS + Android", "Mobile apps"), ("WordPress", "Client sites"),
+                            ("Figma", "Product design"), ("GitHub", "Source + CI")]),
+              ("Search + AI", [("Technical SEO", "Core Web Vitals"), ("AEO", "Answer engines"), ("GEO", "Generative search"),
+                               ("Claude Code", "Development"), ("Claude API", "In-app AI")])]
+    M, G = 40, 40
+    bw = (W - 2 * M - G) / 2
+    rh, top = 46, 64
+    bh = 24 + 5 * rh
+    H = top + 2 * bh + 70 + 24
     D = 10
+    body = frame(T, H)
     n = 0
-    for c, (head, items) in enumerate(cols):
-        x = M + c * cw
-        body += text(head.upper(), x, top, 15, T["muted"], "SemiBold", tracking=0.08, cls="f", style=f"animation-delay:{c*0.08:.2f}s")
-        body += f'<line x1="{x}" y1="{top + 18}" x2="{x + cw - 24}" y2="{top + 18}" stroke="{T["text"]}" stroke-width="1.5" class="hl" style="animation-delay:{0.1 + c*0.08:.2f}s"/>'
-        for r, item in enumerate(items):
-            y = top + 18 + (r + 1) * rh
-            d = 0.3 + c * 0.08 + r * 0.06
+    for bi, (head, items) in enumerate(blocks):
+        x = M + (bi % 2) * (bw + G)
+        y = top + (bi // 2) * (bh + 70)
+        dl = bi * .12
+        body += text(head.upper(), x, y, 13, T["muted"], "SemiBold", tracking=.12, cls="f", style=f"animation-delay:{dl:.2f}s")
+        body += f'<rect x="{x}" y="{y + 16}" width="{bw:.1f}" height="2" fill="{T["text"]}" class="hl" style="animation-delay:{dl + .1:.2f}s"/>'
+        for r, (a, b) in enumerate(items):
+            yy = y + 18 + (r + 1) * rh
+            d = .3 + dl + r * .06
             body += f'<g class="f" style="animation-delay:{d:.2f}s">'
-            body += f'<rect x="{x}" y="{y - rh + 1}" width="{cw - 24}" height="{rh - 1}" fill="{T["accent"]}" class="sw" style="animation-delay:{2 + n*D/20:.2f}s"/>'
-            body += text(item, x, y - 16, 19, T["text"], "Medium")
-            body += f'<line x1="{x}" y1="{y}" x2="{x + cw - 24}" y2="{y}" stroke="{T["line"]}"/></g>'
+            body += f'<rect x="{x}" y="{yy - rh + 1}" width="4" height="{rh - 2}" fill="{T["accent"]}" class="sw" style="animation-delay:{2 + n*D/20:.2f}s"/>'
+            body += f'<rect x="{x}" y="{yy - rh + 1}" width="{bw:.1f}" height="{rh - 2}" fill="{T["accent"]}" class="sb" style="animation-delay:{2 + n*D/20:.2f}s"/>'
+            body += text(a, x + 16, yy - 16, 18, T["text"], "Medium")
+            body += text(b, x + bw - 4, yy - 16, 16, T["muted"], "Regular", anchor="end")
+            body += f'<line x1="{x}" y1="{yy}" x2="{x + bw:.1f}" y2="{yy}" stroke="{T["line"]}"/></g>'
             n += 1
-    style = f'''
-.f{{animation:fade .8s {EASE} both}}
-@keyframes fade{{from{{opacity:0;transform:translateY(8px)}}}}
-.hl{{transform-box:fill-box;transform-origin:left;animation:hl 1s {EASE} both}}
-@keyframes hl{{from{{transform:scaleX(0)}}}}
+    style = COMMON + f'''
 .sw{{opacity:0;animation:sw {D}s ease-out infinite}}
-@keyframes sw{{0%{{opacity:.14}}6%{{opacity:0}}100%{{opacity:0}}}}'''
-    return svg_doc("stack", H, "Stack: Next.js, React, TypeScript, Tailwind CSS, shadcn/ui, Supabase, PostgreSQL, Stripe, Resend, Trigger.dev, Vercel, iOS, Android, WordPress, Figma, Claude Code, Claude API, SEO, AEO, GEO", style, body)
+@keyframes sw{{0%{{opacity:1}}8%{{opacity:0}}100%{{opacity:0}}}}
+.sb{{opacity:0;animation:sb {D}s ease-out infinite}}
+@keyframes sb{{0%{{opacity:.1}}8%{{opacity:0}}100%{{opacity:0}}}}'''
+    return doc(H, "Stack: Next.js, React, TypeScript, Tailwind CSS, shadcn/ui, Supabase, Stripe, Resend, Trigger.dev, Vercel, iOS, Android, WordPress, Figma, GitHub, SEO, AEO, GEO, Claude Code, Claude API", style, body)
 
 
 # =====================================================================
@@ -501,29 +529,26 @@ def stack(T):
 # =====================================================================
 def contact(T):
     reset()
-    H = 230
-    M = 40
-    body = frame(T, H)
-    body += text("Have a project in mind?", M, 74, 22, T["muted"], "Regular", cls="f")
+    H, M = 280, 52
     url = "launchnest.com.au"
-    uw = width(url, 76, "Display-SemiBold", tracking=-0.02)
-    body += text(url, M - 2, 160, 76, T["text"], "Display-SemiBold", tracking=-0.02,
-                 per_glyph=lambda i, ch: ("g", f"animation-delay:{0.15 + i*0.03:.2f}s"))
-    body += f'<rect x="{M}" y="182" width="{uw:.1f}" height="4" fill="{T["accent"]}" class="ul"/>'
-    ax = M + uw + 28
-    body += f'''<g class="arw"><g transform="translate({ax:.1f} 106)">
-  <path d="M6 46 L46 6 M14 6 H46 V38" fill="none" stroke="{T["accent"]}" stroke-width="7" stroke-linecap="square"/></g></g>'''
-    style = f'''
-.f{{animation:fade .8s {EASE} both}}
-@keyframes fade{{from{{opacity:0;transform:translateY(8px)}}}}
-.g{{animation:rise 1s {EASE} both}}
-@keyframes rise{{from{{opacity:0;transform:translateY(40px)}}}}
-.ul{{transform-box:fill-box;transform-origin:left;animation:ul 1.2s {EASE} both .8s}}
-@keyframes ul{{from{{transform:scaleX(0)}}}}
-.arw{{animation:arw 2.4s {EASE} infinite 1.4s}}
-@keyframes arw{{0%,60%,100%{{transform:translate(0,0)}}30%{{transform:translate(8px,-8px)}}}}'''
-    body = body.replace(f'<g fill="{T["text"]}"><g class="g"', f'<g fill="{T["text"]}"><g class="g"')
-    return svg_doc("contact", H, "Have a project in mind? launchnest.com.au", style, body)
+    uw = width(url, 78, "Display-SemiBold", tracking=-.025)
+    body = frame(T, H, T["accent"])
+    body += text("Have a project in mind?", M, 82, 22, T["on_muted"], "Regular", cls="f")
+    body += text(url, M - 3, 172, 78, T["on"], "Display-SemiBold", tracking=-.025,
+                 per_glyph=lambda i, ch: ("g", f"animation-delay:{.15 + i*.03:.2f}s"))
+    body += f'<rect x="{M}" y="196" width="{uw:.1f}" height="4" fill="{T["on"]}" class="ul"/>'
+    ax = M + uw + 30
+    body += f'<g class="arw"><path d="M{ax + 6:.1f} {162} L{ax + 46:.1f} {122} M{ax + 14:.1f} {122} H{ax + 46:.1f} V{154}" fill="none" stroke="{T["on"]}" stroke-width="7"/></g>'
+    rx = W - M
+    body += text(f"{NAME_1} {NAME_2}", rx, 214, 19, T["on"], "SemiBold", anchor="end", cls="f", style="animation-delay:.4s")
+    body += text("Founder, Launch Nest Studio", rx, 240, 16, T["on_muted"], "Regular", anchor="end", cls="f", style="animation-delay:.5s")
+    style = COMMON + f'''
+.g{{animation:rise 1.1s {EASE} both}}
+@keyframes rise{{from{{opacity:0;transform:translateY(46px)}}}}
+.ul{{transform-box:fill-box;transform-origin:left;animation:hl 1.3s {EASE} both .8s}}
+.arw{{animation:arw 2.6s {EASE} infinite 1.4s}}
+@keyframes arw{{0%,55%,100%{{transform:translate(0,0)}}28%{{transform:translate(9px,-9px)}}}}'''
+    return doc(H, f"Have a project in mind? launchnest.com.au. {NAME_1} {NAME_2}, founder of Launch Nest Studio.", style, body)
 
 
 if __name__ == "__main__":
